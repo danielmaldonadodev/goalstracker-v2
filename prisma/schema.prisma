@@ -1,0 +1,390 @@
+// GoalsTracker V2 - Multi-user Professional Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// AUTHENTICATION & USERS
+// =============================================================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  passwordHash  String?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  settings      UserSettings?
+  objectives    Objective[]
+  entries       DailyEntry[]
+  insights      AIInsight[]
+  
+  // Gamification
+  level         Int       @default(1)
+  xp            Int       @default(0)
+  badges        UserBadge[]
+  
+  // Teams (future)
+  teamMemberships TeamMember[]
+  
+  @@index([email])
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// =============================================================================
+// USER SETTINGS
+// =============================================================================
+
+model UserSettings {
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Localization
+  timezone        String  @default("Europe/Madrid")
+  weekStartsOn    Int     @default(1) // 1 = Monday
+  locale          String  @default("es-ES")
+  
+  // UI Preferences
+  theme           String  @default("light") // light, dark, system
+  colorScheme     String  @default("green") // Color theme
+  
+  // Notifications
+  notifications   Boolean @default(true)
+  reminderTime    String? @default("22:00")
+  pushEnabled     Boolean @default(false)
+  pushSubscription Json?
+  
+  // Privacy
+  profilePublic   Boolean @default(false)
+  shareStats      Boolean @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("user_settings")
+}
+
+// =============================================================================
+// OBJECTIVES
+// =============================================================================
+
+model Objective {
+  id            String          @id @default(cuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Basic info
+  name          String
+  description   String?         @db.Text
+  icon          String?         // Emoji
+  color         String?         // Hex color
+  
+  // Configuration
+  type          ObjectiveType
+  unit          String?         // "km", "pages", "hours", etc
+  config        Json            // Type-specific configuration
+  thresholds    Json            // Color thresholds
+  
+  // Metadata
+  category      String?         // "health", "productivity", "wellness"
+  status        ObjectiveStatus @default(ACTIVE)
+  sortOrder     Int             @default(0)
+  
+  // Dates
+  activeFrom    DateTime        @default(now())
+  activeTo      DateTime?
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  
+  // Relations
+  values        DailyValue[]
+  
+  @@index([userId, status])
+  @@index([userId, activeFrom, activeTo])
+  @@map("objectives")
+}
+
+enum ObjectiveType {
+  NUMERIC          // 5 km, 20 pages, etc
+  BOOLEAN          // Yes/No
+  CHOICE           // Option selection
+  TIME             // 06:30 AM
+  COUNTER          // 8 glasses
+  CHECKLIST        // Multiple items
+  SCALE            // 1-10 rating
+  OPTIONAL_DAYS    // X times per week
+}
+
+enum ObjectiveStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+  DELETED
+}
+
+// =============================================================================
+// DAILY ENTRIES
+// =============================================================================
+
+model DailyEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  date      DateTime @unique
+  
+  // Wellness tracking
+  mood      Int?     @db.SmallInt // 1-5
+  energy    Int?     @db.SmallInt // 1-5
+  stress    Int?     @db.SmallInt // 1-5
+  sleep     Float?                // Hours slept
+  notes     String?  @db.Text
+  
+  // Metadata
+  tags      String[] // Array of strings
+  weather   String?
+  location  String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  values    DailyValue[]
+  
+  @@index([userId, date])
+  @@map("daily_entries")
+}
+
+// =============================================================================
+// DAILY VALUES
+// =============================================================================
+
+model DailyValue {
+  id           String    @id @default(cuid())
+  
+  entryId      String
+  entry        DailyEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  
+  objectiveId  String
+  objective    Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  
+  // Values (depending on objective type)
+  valueNumeric Float?
+  valueBool    Boolean?
+  valueText    String?
+  valueJson    Json?    // For complex types
+  
+  // Calculated color
+  color        String   // "green", "orange", "red", "gray"
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@unique([entryId, objectiveId])
+  @@index([objectiveId])
+  @@map("daily_values")
+}
+
+// =============================================================================
+// AI INSIGHTS
+// =============================================================================
+
+model AIInsight {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type        InsightType
+  title       String
+  description String      @db.Text
+  actionable  String?     @db.Text
+  
+  // Metadata
+  priority    Int         @default(0)
+  read        Boolean     @default(false)
+  dismissed   Boolean     @default(false)
+  
+  // Context
+  period      String?     // "2024-W52", "2024-12", etc
+  objectives  String[]    // Objective IDs affected
+  
+  createdAt   DateTime    @default(now())
+  
+  @@index([userId, read, dismissed])
+  @@map("ai_insights")
+}
+
+enum InsightType {
+  SUCCESS        // Positive achievement
+  WARNING        // Something needs attention
+  INFO           // General information
+  PREDICTION     // Future forecast
+  CORRELATION    // Pattern between objectives
+  RECOMMENDATION // Suggested action
+}
+
+// =============================================================================
+// GAMIFICATION
+// =============================================================================
+
+model Badge {
+  id          String      @id @default(cuid())
+  slug        String      @unique
+  name        String
+  description String      @db.Text
+  icon        String      // Emoji or icon name
+  rarity      BadgeRarity
+  
+  // Requirements (stored as JSON)
+  requirements Json
+  
+  users       UserBadge[]
+  
+  @@map("badges")
+}
+
+enum BadgeRarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+model UserBadge {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  badgeId    String
+  badge      Badge    @relation(fields: [badgeId], references: [id])
+  
+  unlockedAt DateTime @default(now())
+  
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@map("user_badges")
+}
+
+// =============================================================================
+// OBJECTIVE TEMPLATES
+// =============================================================================
+
+model ObjectiveTemplate {
+  id          String        @id @default(cuid())
+  
+  name        String
+  description String?       @db.Text
+  category    String
+  type        ObjectiveType
+  unit        String?
+  config      Json
+  thresholds  Json
+  icon        String?
+  
+  // Popularity
+  usageCount  Int           @default(0)
+  featured    Boolean       @default(false)
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  @@index([category])
+  @@index([featured])
+  @@map("objective_templates")
+}
+
+// =============================================================================
+// TEAMS (Optional - for future social features)
+// =============================================================================
+
+model Team {
+  id          String       @id @default(cuid())
+  name        String
+  description String?      @db.Text
+  slug        String       @unique
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  members     TeamMember[]
+  
+  @@map("teams")
+}
+
+model TeamMember {
+  id       String   @id @default(cuid())
+  
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  teamId   String
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  role     TeamRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+  
+  @@unique([userId, teamId])
+  @@index([teamId])
+  @@map("team_members")
+}
+
+enum TeamRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
