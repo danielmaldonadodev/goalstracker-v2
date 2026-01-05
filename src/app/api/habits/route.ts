@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 // GET - Obtener todos los hábitos activos del usuario
+// GET - Obtener hábitos del usuario
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -12,11 +13,20 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const includeArchived = searchParams.get("includeArchived") === "true";
+
+    const where: any = {
+      userId: session.user.id,
+    };
+
+    // Si NO incluye archivados, solo devolver activos
+    if (!includeArchived) {
+      where.active = true;
+    }
+
     const habits = await prisma.objective.findMany({
-      where: {
-        userId: session.user.id,
-        active: true,
-      },
+      where,
       orderBy: {
         createdAt: "asc",
       },

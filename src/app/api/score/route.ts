@@ -22,16 +22,16 @@ export async function GET(req: Request) {
     const endDate = new Date(date);
     endDate.setHours(23, 59, 59, 999);
 
-    // Obtener objetivos activos para esta fecha
+    // 1. OBJETIVOS (60 puntos)
     const objectives = await prisma.objective.findMany({
       where: {
         userId: session.user.id,
         active: true,
         OR: [
-          { startDate: null, endDate: null }, // Sin fechas = siempre activo
+          { startDate: null, endDate: null },
           {
             AND: [
-              { startDate: { lte: date } },
+              { OR: [{ startDate: null }, { startDate: { lte: date } }] },
               { OR: [{ endDate: null }, { endDate: { gte: date } }] },
             ],
           },
@@ -39,104 +39,83 @@ export async function GET(req: Request) {
       },
     });
 
-    // Obtener entries del día
     const entries = await prisma.entry.findMany({
       where: {
         userId: session.user.id,
-        date: {
-          gte: date,
-          lte: endDate,
-        },
+        date: { gte: date, lte: endDate },
       },
-      include: {
-        objective: true,
-      },
+      include: { objective: true },
     });
 
-    // Calcular score de objetivos (40 puntos máx)
-    let habitsScore = 0;
-    if (objectives.length > 0) {
-      let completedCount = 0;
+    // Calcular objetivos completados (solo 100% cuenta)
+    let objectivesCompleted = 0;
+    entries.forEach((entry) => {
+      const objective = objectives.find((o) => o.id === entry.objectiveId);
+      if (!objective) return;
 
-      entries.forEach((entry) => {
-        const objective = objectives.find((o) => o.id === entry.objectiveId);
-        if (!objective) return;
-
-        if (objective.type === "boolean") {
-          // Boolean: solo cuenta si value > 0
-          if (entry.value > 0) completedCount++;
-        } else {
-          // Number/Time: cuenta como completado si alcanza el target
-          if (objective.target && entry.value >= objective.target) {
-            completedCount++;
-          } else if (!objective.target && entry.value > 0) {
-            // Si no hay target, cualquier valor > 0 cuenta
-            completedCount++;
-          }
+      if (objective.type === "boolean") {
+        // Boolean: cualquier valor > 0 es completado
+        if (entry.value > 0) objectivesCompleted++;
+      } else {
+        // Number/Time: debe alcanzar o superar el target (100%)
+        if (objective.target && entry.value >= objective.target) {
+          objectivesCompleted++;
         }
-      });
+      }
+    });
 
-      habitsScore = Math.round((completedCount / objectives.length) * 40);
-    }
+    const objectivesScore =
+      objectives.length > 0
+        ? Math.round((objectivesCompleted / objectives.length) * 60)
+        : 0;
 
-    // Verificar diario (30 puntos)
+    // 2. DIARIO (25 puntos)
     const diaryEntry = await prisma.diaryEntry.findFirst({
       where: {
         userId: session.user.id,
-        date: {
-          gte: date,
-          lte: endDate,
-        },
+        date: { gte: date, lte: endDate },
       },
     });
-    const diaryScore = diaryEntry ? 30 : 0;
+    const diaryScore = diaryEntry ? 25 : 0;
 
-    // Verificar media (20 puntos)
+    // 3. MEDIA (15 puntos)
     const mediaEntries = await prisma.mediaEntry.findMany({
       where: {
         userId: session.user.id,
-        date: {
-          gte: date,
-          lte: endDate,
-        },
+        date: { gte: date, lte: endDate },
       },
     });
-    const mediaScore = mediaEntries.length > 0 ? 20 : 0;
+    const mediaScore = mediaEntries.length > 0 ? 15 : 0;
 
-    // Score total
-    const totalScore = habitsScore + diaryScore + mediaScore;
+    // TOTAL
+    const totalScore = objectivesScore + diaryScore + mediaScore;
 
-    // Buscar si ya existe DailyScore
+    // Guardar o actualizar
     const existingScore = await prisma.dailyScore.findFirst({
       where: {
         userId: session.user.id,
-        date: {
-          gte: date,
-          lte: endDate,
-        },
+        date: { gte: date, lte: endDate },
       },
     });
 
     let scoreRecord;
     if (existingScore) {
-      // Actualizar
       scoreRecord = await prisma.dailyScore.update({
         where: { id: existingScore.id },
         data: {
           score: totalScore,
-          habitsScore,
+          habitsScore: objectivesScore,
           diaryScore,
           mediaScore,
         },
       });
     } else {
-      // Crear
       scoreRecord = await prisma.dailyScore.create({
         data: {
           userId: session.user.id,
           date: date,
           score: totalScore,
-          habitsScore,
+          habitsScore: objectivesScore,
           diaryScore,
           mediaScore,
         },
@@ -146,16 +125,22 @@ export async function GET(req: Request) {
     return NextResponse.json({
       score: scoreRecord,
       breakdown: {
-        habits: `${
-          entries.filter((e) => {
-            const obj = objectives.find((o) => o.id === e.objectiveId);
-            if (!obj) return false;
-            if (obj.type === "boolean") return e.value > 0;
-            return obj.target ? e.value >= obj.target : e.value > 0;
-          }).length
-        }/${objectives.length}`,
-        diary: diaryEntry ? "Sí" : "No",
-        media: `${mediaEntries.length} entradas`,
+        objectives: {
+          completed: objectivesCompleted,
+          total: objectives.length,
+          score: objectivesScore,
+          maxScore: 60,
+        },
+        diary: {
+          hasEntry: !!diaryEntry,
+          score: diaryScore,
+          maxScore: 25,
+        },
+        media: {
+          count: mediaEntries.length,
+          score: mediaScore,
+          maxScore: 15,
+        },
       },
     });
   } catch (error) {

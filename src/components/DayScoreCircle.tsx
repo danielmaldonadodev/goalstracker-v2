@@ -1,104 +1,138 @@
 "use client";
 
-import { motion } from "framer-motion";
-
 interface DayScoreCircleProps {
-  score: number; // 0-100
-  className?: string;
+  score: number;
+  breakdown?: {
+    objectives?: {
+      completed: number;
+      total: number;
+      score: number;
+      maxScore: number;
+    };
+    diary?: { hasEntry: boolean; score: number; maxScore: number };
+    media?: { count: number; score: number; maxScore: number };
+  };
 }
 
 export default function DayScoreCircle({
   score,
-  className = "",
+  breakdown,
 }: DayScoreCircleProps) {
-  // Determinar color según score (sutil, profesional)
-  const getScoreColor = () => {
-    if (score >= 80) return "#10b981"; // green
-    if (score >= 50) return "#f59e0b"; // amber
+  const radius = 120;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (score / 100) * circumference;
+
+  const getColor = () => {
+    if (score >= 80) return "#22c55e"; // green
+    if (score >= 60) return "#eab308"; // yellow
+    if (score >= 40) return "#f97316"; // orange
     return "#ef4444"; // red
   };
 
-  const scoreColor = getScoreColor();
-  const circumference = 2 * Math.PI * 90;
-  const strokeDashoffset = circumference - (score / 100) * circumference;
-
   return (
-    <div className={`flex flex-col items-center ${className}`}>
-      {/* Título */}
-      <div className="text-sm font-medium text-muted-foreground mb-8 tracking-wider uppercase">
-        Progreso Diario
-      </div>
-
-      {/* Círculo minimalista */}
+    <div className="flex flex-col items-center gap-8">
+      {/* Circle */}
       <div className="relative">
-        <svg width="220" height="220" className="transform -rotate-90">
-          {/* Background circle (más sutil) */}
+        <svg width="280" height="280" className="transform -rotate-90">
+          {/* Background circle */}
           <circle
-            cx="110"
-            cy="110"
-            r="90"
-            fill="none"
+            cx="140"
+            cy="140"
+            r={radius}
             stroke="currentColor"
-            strokeWidth="2"
-            className="text-border"
-            opacity="0.2"
-          />
-
-          {/* Progress circle */}
-          <motion.circle
-            cx="110"
-            cy="110"
-            r="90"
+            strokeWidth="16"
             fill="none"
-            stroke={scoreColor}
-            strokeWidth="2"
-            strokeLinecap="round"
+            className="text-muted/20"
+          />
+          {/* Progress circle */}
+          <circle
+            cx="140"
+            cy="140"
+            r={radius}
+            stroke={getColor()}
+            strokeWidth="16"
+            fill="none"
             strokeDasharray={circumference}
-            initial={{ strokeDashoffset: circumference }}
-            animate={{ strokeDashoffset }}
-            transition={{
-              duration: 1.5,
-              ease: [0.65, 0, 0.35, 1],
-            }}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            className="transition-all duration-1000 ease-out"
           />
         </svg>
 
-        {/* Score en el centro */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{
-              delay: 0.3,
-              duration: 0.6,
-              ease: [0.65, 0, 0.35, 1],
-            }}
-            className="text-center"
+        {/* Score text */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div
+            className="text-6xl font-light tracking-tight"
+            style={{ color: getColor() }}
           >
-            <div
-              className="text-7xl font-light tracking-tighter tabular-nums"
-              style={{ color: scoreColor }}
-            >
-              {Math.round(score)}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1 font-medium tracking-wider">
-              PORCENTAJE
-            </div>
-          </motion.div>
+            {score}
+          </div>
+          <div className="text-sm text-muted-foreground mt-2">puntos</div>
         </div>
       </div>
 
-      {/* Status text */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-        className="mt-8 text-sm text-muted-foreground"
-      >
-        {score >= 80 && "Día excelente"}
-        {score >= 50 && score < 80 && "Buen progreso"}
-        {score < 50 && "Sigue así"}
-      </motion.div>
+      {/* Breakdown */}
+      {breakdown && (
+        <div className="w-full max-w-md space-y-3">
+          {/* Objetivos */}
+          {breakdown.objectives && (
+            <div className="flex items-center justify-between p-4 rounded-xl border border-border">
+              <div>
+                <p className="text-sm font-medium">Objetivos</p>
+                <p className="text-xs text-muted-foreground">
+                  {breakdown.objectives.completed}/{breakdown.objectives.total}{" "}
+                  completados
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-light">
+                  {breakdown.objectives.score}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  de {breakdown.objectives.maxScore}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Diario */}
+          {breakdown.diary && (
+            <div className="flex items-center justify-between p-4 rounded-xl border border-border">
+              <div>
+                <p className="text-sm font-medium">Diario</p>
+                <p className="text-xs text-muted-foreground">
+                  {breakdown.diary.hasEntry ? "Escrito" : "Sin escribir"}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-light">{breakdown.diary.score}</p>
+                <p className="text-xs text-muted-foreground">
+                  de {breakdown.diary.maxScore}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Media */}
+          {breakdown.media && (
+            <div className="flex items-center justify-between p-4 rounded-xl border border-border">
+              <div>
+                <p className="text-sm font-medium">Media</p>
+                <p className="text-xs text-muted-foreground">
+                  {breakdown.media.count}{" "}
+                  {breakdown.media.count === 1 ? "entrada" : "entradas"}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-light">{breakdown.media.score}</p>
+                <p className="text-xs text-muted-foreground">
+                  de {breakdown.media.maxScore}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -34,18 +34,17 @@ export default function ObjectivesPage() {
   const loadObjectives = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/habits");
+      // Cargar TODOS los objetivos (incluidos archivados)
+      const res = await fetch("/api/habits?includeArchived=true");
       if (res.ok) {
         const data = await res.json();
-        const active = data.habits.filter((h: any) => h.active !== false);
-        setObjectives(active);
-      }
+        const all = data.habits || [];
 
-      // Cargar archivados
-      const resAll = await fetch("/api/habits");
-      if (resAll.ok) {
-        const dataAll = await resAll.json();
-        const archived = dataAll.habits.filter((h: any) => h.active === false);
+        // Separar activos y archivados
+        const active = all.filter((h: any) => h.active !== false);
+        const archived = all.filter((h: any) => h.active === false);
+
+        setObjectives(active);
         setArchivedObjectives(archived);
       }
     } catch (error) {

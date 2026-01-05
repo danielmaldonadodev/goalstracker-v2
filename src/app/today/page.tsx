@@ -13,13 +13,13 @@ import { redirect } from "next/navigation";
 import { useEffect, useState } from "react";
 
 // Componente para input de objetivo con estado local
+// Componente para input de objetivo con estado local
 function ObjectiveInput({ habit, currentValue, progress, onUpdate }: any) {
   const [localValue, setLocalValue] = useState(
     currentValue > 0 ? currentValue.toString() : ""
   );
   const [isFocused, setIsFocused] = useState(false);
 
-  // Actualizar localValue cuando cambia currentValue (después de guardar)
   useEffect(() => {
     if (!isFocused) {
       setLocalValue(currentValue > 0 ? currentValue.toString() : "");
@@ -41,69 +41,114 @@ function ObjectiveInput({ habit, currentValue, progress, onUpdate }: any) {
     }
   };
 
+  const isCompleted =
+    habit.type === "boolean"
+      ? currentValue > 0
+      : habit.target && currentValue >= habit.target;
+
   return (
-    <div className="rounded-xl border border-border bg-background overflow-hidden">
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="flex-1 min-w-0">
-            <h4 className="font-medium truncate">{habit.title}</h4>
-            {habit.type !== "boolean" && habit.target && (
-              <p className="text-xs text-muted-foreground mt-1">
+    <div
+      className={`
+      rounded-2xl border-2 transition-all overflow-hidden
+      ${
+        isCompleted
+          ? "border-green-500 bg-green-500/5"
+          : "border-border bg-background"
+      }
+    `}
+    >
+      <div className="p-6">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h4 className="text-lg font-medium">{habit.title}</h4>
+              {isCompleted && <span className="text-green-500 text-xl">✓</span>}
+            </div>
+            {habit.type !== "boolean" && (
+              <p className="text-sm text-muted-foreground">
                 Meta: {habit.target} {habit.unit}
               </p>
             )}
           </div>
 
-          {/* Input según tipo */}
-          {habit.type === "boolean" ? (
-            <label className="flex items-center cursor-pointer shrink-0">
+          {/* Badge del tipo */}
+          <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
+            {habit.type === "boolean"
+              ? "Sí/No"
+              : habit.type === "time"
+              ? "Tiempo"
+              : "Cantidad"}
+          </span>
+        </div>
+
+        {/* Input Section */}
+        {habit.type === "boolean" ? (
+          // BOOLEAN: Toggle grande
+          <div className="flex items-center justify-center py-4">
+            <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
                 checked={currentValue > 0}
                 onChange={(e) => onUpdate(habit.id, e.target.checked ? 1 : 0)}
-                className="w-5 h-5 rounded border-border"
+                className="sr-only peer"
               />
-            </label>
-          ) : (
-            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 shrink-0">
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={localValue}
-                  onChange={(e) => handleChange(e.target.value)}
-                  onFocus={() => setIsFocused(true)}
-                  onBlur={handleBlur}
-                  placeholder="0"
-                  className="w-20 px-3 py-2 text-center bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-foreground/20 transition-all font-medium text-sm"
-                />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {habit.unit}
-                </span>
+              <div className="w-20 h-20 bg-muted rounded-2xl peer-checked:bg-green-500 transition-all flex items-center justify-center">
+                {currentValue > 0 ? (
+                  <span className="text-4xl text-white">✓</span>
+                ) : (
+                  <span className="text-4xl text-muted-foreground">○</span>
+                )}
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Barra de progreso */}
-        {habit.type !== "boolean" && habit.target && (
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-xs text-muted-foreground">
-                {currentValue} / {habit.target}
-              </span>
-              <span className="text-xs font-medium">
-                {Math.round(progress)}%
-              </span>
-            </div>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-foreground transition-all duration-500 ease-out"
-                style={{
-                  width: `${Math.min(progress, 100)}%`,
-                }}
+            </label>
+          </div>
+        ) : (
+          // NUMBER/TIME: Input grande + barra
+          <div className="space-y-4">
+            {/* Input super grande */}
+            <div className="flex items-center justify-center gap-3">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={localValue}
+                onChange={(e) => handleChange(e.target.value)}
+                onFocus={() => setIsFocused(true)}
+                onBlur={handleBlur}
+                placeholder="0"
+                className="w-32 px-6 py-4 text-3xl font-light text-center bg-muted/50 border-2 border-border rounded-2xl focus:outline-none focus:border-foreground transition-all"
               />
+              <span className="text-xl text-muted-foreground font-light">
+                {habit.unit}
+              </span>
             </div>
+
+            {/* Barra de progreso GRUESA */}
+            {habit.target && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {currentValue} / {habit.target}
+                  </span>
+                  <span
+                    className={`font-medium ${
+                      isCompleted ? "text-green-500" : "text-foreground"
+                    }`}
+                  >
+                    {Math.round(progress)}%
+                  </span>
+                </div>
+                <div className="h-4 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-500 ease-out ${
+                      isCompleted ? "bg-green-500" : "bg-foreground"
+                    }`}
+                    style={{
+                      width: `${Math.min(progress, 100)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -115,6 +160,7 @@ export default function TodayPage() {
   const { data: session, status } = useSession();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [score, setScore] = useState(0);
+  const [breakdown, setBreakdown] = useState<any>(null);
   const [diaryEntry, setDiaryEntry] = useState<any>(null);
   const [mediaEntries, setMediaEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,6 +193,7 @@ export default function TodayPage() {
       if (scoreRes.ok) {
         const scoreData = await scoreRes.json();
         setScore(scoreData.score.score || 0);
+        setBreakdown(scoreData.breakdown || null); // <-- AÑADIR
       }
 
       // Cargar diario
@@ -323,7 +370,7 @@ export default function TodayPage() {
                 <div className="h-64 w-64 rounded-full bg-muted/20 animate-pulse"></div>
               </div>
             ) : (
-              <DayScoreCircle score={score} />
+              <DayScoreCircle score={score} breakdown={breakdown} />
             )}
           </div>
 
