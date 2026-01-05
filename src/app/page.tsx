@@ -1,39 +1,36 @@
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center">
-      <div className="text-center space-y-8 p-8">
-        <h1 className="text-6xl font-display font-bold">
-          <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-            Goals
-          </span>
-          <span className="text-slate-800">Tracker</span>
-        </h1>
-        
-        <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-          Seguimiento profesional de hábitos
-        </p>
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="max-w-sm w-full mx-6">
+        {/* Logo minimalista */}
+        <div className="text-center mb-16">
+          <h1 className="text-7xl font-light tracking-tighter mb-4">MyYear</h1>
+          <p className="text-muted-foreground text-sm tracking-wide">
+            Captura tu vida. Analiza tu año.
+          </p>
+        </div>
 
-        <div className="text-4xl">🎯</div>
-        
-        <p className="text-sm text-slate-500">
-          App funcionando! Next.js + PostgreSQL + Redis ✅
-        </p>
-
-        <div className="flex gap-4 justify-center mt-8">
+        {/* Actions */}
+        <div className="space-y-3">
           <a
             href="/login"
-            className="px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-xl hover:shadow-lg transition-all"
+            className="block w-full bg-foreground text-background text-center py-4 rounded-xl font-medium hover:opacity-90 transition-opacity"
           >
             Iniciar Sesión
           </a>
           <a
             href="/register"
-            className="px-8 py-4 bg-white text-slate-700 font-bold rounded-xl border-2 border-slate-200 hover:border-green-500 transition-all"
+            className="block w-full border border-border text-foreground text-center py-4 rounded-xl font-medium hover:bg-muted/50 transition-colors"
           >
-            Registrarse
+            Crear Cuenta
           </a>
         </div>
+
+        {/* Footer sutil */}
+        <div className="mt-16 text-center">
+          <p className="text-xs text-muted-foreground">2025</p>
+        </div>
       </div>
-    </main>
-  )
+    </div>
+  );
 }

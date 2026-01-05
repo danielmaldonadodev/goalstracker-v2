@@ -1,34 +1,35 @@
-﻿import type { Metadata } from 'next'
-import { Outfit, Space_Mono } from 'next/font/google'
-import './globals.css'
-import { Providers } from './providers'
+﻿import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+import { Providers } from "./providers";
 
-const outfit = Outfit({ 
-  subsets: ['latin'], 
-  variable: '--font-outfit' 
-})
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
 
-const spaceMono = Space_Mono({ 
-  weight: ['400', '700'], 
-  subsets: ['latin'], 
-  variable: '--font-space-mono' 
-})
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
-  title: 'GoalsTracker',
-  description: 'Seguimiento profesional de hábitos',
-}
+  title: "MyYear - Captura tu vida",
+  description: "Captura tu vida. Analiza tu año.",
+};
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="es" className={`${outfit.variable} ${spaceMono.variable}`}>
-      <body className="font-body">
+    <html lang="es">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
         <Providers>{children}</Providers>
       </body>
     </html>
-  )
+  );
 }
