@@ -117,7 +117,7 @@ export async function POST(req: Request) {
         data: {
           userId: session.user.id,
           objectiveId: objectiveId,
-          date: new Date(),
+          date: date, // <-- USAR LA FECHA CORRECTA, NO new Date()
           value: value,
         },
       });
