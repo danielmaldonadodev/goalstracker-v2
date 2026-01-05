@@ -44,9 +44,9 @@ function ObjectiveInput({ habit, currentValue, progress, onUpdate }: any) {
   return (
     <div className="rounded-xl border border-border bg-background overflow-hidden">
       <div className="p-4">
-        <div className="flex items-start justify-between gap-4 mb-3">
-          <div className="flex-1">
-            <h4 className="font-medium">{habit.title}</h4>
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex-1 min-w-0">
+            <h4 className="font-medium truncate">{habit.title}</h4>
             {habit.type !== "boolean" && habit.target && (
               <p className="text-xs text-muted-foreground mt-1">
                 Meta: {habit.target} {habit.unit}
@@ -56,7 +56,7 @@ function ObjectiveInput({ habit, currentValue, progress, onUpdate }: any) {
 
           {/* Input según tipo */}
           {habit.type === "boolean" ? (
-            <label className="flex items-center cursor-pointer">
+            <label className="flex items-center cursor-pointer shrink-0">
               <input
                 type="checkbox"
                 checked={currentValue > 0}
@@ -65,20 +65,22 @@ function ObjectiveInput({ habit, currentValue, progress, onUpdate }: any) {
               />
             </label>
           ) : (
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                inputMode="decimal"
-                value={localValue}
-                onChange={(e) => handleChange(e.target.value)}
-                onFocus={() => setIsFocused(true)}
-                onBlur={handleBlur}
-                placeholder="0"
-                className="w-24 px-3 py-2 text-center bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-foreground/20 transition-all font-medium"
-              />
-              <span className="text-xs text-muted-foreground w-16">
-                {habit.unit}
-              </span>
+            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={localValue}
+                  onChange={(e) => handleChange(e.target.value)}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={handleBlur}
+                  placeholder="0"
+                  className="w-20 px-3 py-2 text-center bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-foreground/20 transition-all font-medium text-sm"
+                />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {habit.unit}
+                </span>
+              </div>
             </div>
           )}
         </div>

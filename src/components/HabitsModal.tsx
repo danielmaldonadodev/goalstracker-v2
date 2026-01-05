@@ -61,6 +61,7 @@ export default function HabitsModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+    if (type !== "boolean" && (!target.trim() || !unit.trim())) return;
 
     setLoading(true);
     try {
@@ -70,7 +71,7 @@ export default function HabitsModal({
       };
 
       if (type !== "boolean") {
-        payload.target = parseFloat(target);
+        payload.target = parseFloat(target.replace(",", "."));
         payload.unit = unit.trim();
       }
 
@@ -150,6 +151,7 @@ export default function HabitsModal({
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               className="bg-background border border-border rounded-t-3xl sm:rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl"
             >
+              {/* Header */}
               <div className="border-b border-border p-6 flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-light tracking-tight">
@@ -167,9 +169,11 @@ export default function HabitsModal({
                 </button>
               </div>
 
+              {/* Content */}
               <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-180px)]">
                 {!showForm ? (
                   <>
+                    {/* Botón Nuevo Objetivo */}
                     <button
                       onClick={() => setShowForm(true)}
                       className="w-full py-3 border-2 border-dashed border-border rounded-xl hover:border-foreground/50 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
@@ -178,21 +182,24 @@ export default function HabitsModal({
                       Nuevo Objetivo
                     </button>
 
+                    {/* Lista de Objetivos */}
                     <div className="space-y-2">
                       {habits.map((habit) => (
                         <div
                           key={habit.id}
                           className="flex items-start justify-between p-4 rounded-xl border border-border hover:bg-muted/50 transition-colors group"
                         >
-                          <div className="flex-1">
-                            <h4 className="font-medium">{habit.title}</h4>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium truncate">
+                              {habit.title}
+                            </h4>
                             <p className="text-xs text-muted-foreground mt-1">
                               {getObjectiveDescription(habit)}
                             </p>
                           </div>
                           <button
                             onClick={() => handleDelete(habit.id)}
-                            className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                            className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-all shrink-0 ml-2"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -216,8 +223,8 @@ export default function HabitsModal({
                         type="text"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        placeholder="Ej: Hacer ejercicio, Leer, Caminar..."
-                        className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-foreground/20 transition-all"
+                        placeholder="Hacer ejercicio, Leer, Caminar..."
+                        className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-foreground/20 transition-all text-base"
                         autoFocus
                       />
                     </div>
@@ -225,13 +232,13 @@ export default function HabitsModal({
                     {/* Tipo */}
                     <div>
                       <label className="block text-sm font-medium mb-3">
-                        Tipo
+                        Tipo de objetivo
                       </label>
                       <div className="grid grid-cols-3 gap-2">
                         <button
                           type="button"
                           onClick={() => setType("boolean")}
-                          className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+                          className={`px-4 py-3 rounded-xl text-sm font-medium transition-all border ${
                             type === "boolean"
                               ? "bg-foreground text-background border-foreground"
                               : "bg-background border-border hover:border-foreground/50"
@@ -242,7 +249,7 @@ export default function HabitsModal({
                         <button
                           type="button"
                           onClick={() => setType("number")}
-                          className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+                          className={`px-4 py-3 rounded-xl text-sm font-medium transition-all border ${
                             type === "number"
                               ? "bg-foreground text-background border-foreground"
                               : "bg-background border-border hover:border-foreground/50"
@@ -253,7 +260,7 @@ export default function HabitsModal({
                         <button
                           type="button"
                           onClick={() => setType("time")}
-                          className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+                          className={`px-4 py-3 rounded-xl text-sm font-medium transition-all border ${
                             type === "time"
                               ? "bg-foreground text-background border-foreground"
                               : "bg-background border-border hover:border-foreground/50"
@@ -264,26 +271,43 @@ export default function HabitsModal({
                       </div>
                     </div>
 
-                    {/* Meta y Unidad */}
+                    {/* Meta y Unidad (solo para number y time) */}
                     {type !== "boolean" && (
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Meta diaria
-                        </label>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={target}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(",", ".");
-                            // Validar que solo sean números y un punto
-                            if (val === "" || /^\d*\.?\d*$/.test(val)) {
-                              setTarget(val);
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2">
+                            Meta diaria
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={target}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(",", ".");
+                              if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                                setTarget(val);
+                              }
+                            }}
+                            placeholder={type === "time" ? "30" : "10000"}
+                            className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-foreground/20 transition-all text-base"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">
+                            Unidad
+                          </label>
+                          <input
+                            type="text"
+                            value={unit}
+                            onChange={(e) => setUnit(e.target.value)}
+                            placeholder={
+                              type === "time"
+                                ? "minutos, horas..."
+                                : "pasos, km, páginas, litros..."
                             }
-                          }}
-                          placeholder={type === "time" ? "30" : "10000"}
-                          className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-foreground/20 transition-all"
-                        />
+                            className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-foreground/20 transition-all text-base"
+                          />
+                        </div>
                       </div>
                     )}
 
@@ -293,7 +317,7 @@ export default function HabitsModal({
                         <Calendar size={16} />
                         Duración (opcional)
                       </label>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-4">
                         <div>
                           <label className="block text-xs text-muted-foreground mb-2">
                             Desde
@@ -302,7 +326,7 @@ export default function HabitsModal({
                             type="date"
                             value={startDate}
                             onChange={(e) => setStartDate(e.target.value)}
-                            className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-foreground/20 transition-all"
+                            className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-foreground/20 transition-all text-base"
                           />
                         </div>
                         <div>
@@ -313,17 +337,17 @@ export default function HabitsModal({
                             type="date"
                             value={endDate}
                             onChange={(e) => setEndDate(e.target.value)}
-                            className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-foreground/20 transition-all"
+                            className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-foreground/20 transition-all text-base"
                           />
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">
+                      <p className="text-xs text-muted-foreground mt-3">
                         Si no especificas fechas, el objetivo será permanente
                       </p>
                     </div>
 
                     {/* Botones */}
-                    <div className="flex gap-3">
+                    <div className="flex flex-col sm:flex-row gap-3">
                       <button
                         type="button"
                         onClick={resetForm}
@@ -335,7 +359,8 @@ export default function HabitsModal({
                         type="submit"
                         disabled={
                           !title.trim() ||
-                          (type !== "boolean" && (!target || !unit)) ||
+                          (type !== "boolean" &&
+                            (!target.trim() || !unit.trim())) ||
                           loading
                         }
                         className="flex-1 px-6 py-3 bg-foreground text-background rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
@@ -347,6 +372,7 @@ export default function HabitsModal({
                 )}
               </div>
 
+              {/* Footer */}
               <div className="border-t border-border p-6">
                 <button
                   onClick={onClose}
