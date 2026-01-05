@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Generar Iconos MyYear</title>
+  </head>
+  <body>
+    <h1>Generar Iconos</h1>
+    <button onclick="generateIcons()">Generar y Descargar</button>
+
+    <script>
+      function generateIcons() {
+        // Generar 192x192
+        const canvas192 = document.createElement("canvas");
+        canvas192.width = 192;
+        canvas192.height = 192;
+        const ctx192 = canvas192.getContext("2d");
+
+        // Fondo negro
+        ctx192.fillStyle = "#000000";
+        ctx192.fillRect(0, 0, 192, 192);
+
+        // Texto "MY"
+        ctx192.fillStyle = "#ffffff";
+        ctx192.font = "bold 80px system-ui";
+        ctx192.textAlign = "center";
+        ctx192.textBaseline = "middle";
+        ctx192.fillText("MY", 96, 96);
+
+        // Descargar
+        canvas192.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "icon-192.png";
+          a.click();
+        });
+
+        // Generar 512x512
+        setTimeout(() => {
+          const canvas512 = document.createElement("canvas");
+          canvas512.width = 512;
+          canvas512.height = 512;
+          const ctx512 = canvas512.getContext("2d");
+
+          ctx512.fillStyle = "#000000";
+          ctx512.fillRect(0, 0, 512, 512);
+
+          ctx512.fillStyle = "#ffffff";
+          ctx512.font = "bold 220px system-ui";
+          ctx512.textAlign = "center";
+          ctx512.textBaseline = "middle";
+          ctx512.fillText("MY", 256, 256);
+
+          canvas512.toBlob((blob) => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "icon-512.png";
+            a.click();
+          });
+        }, 1000);
+
+        alert("Iconos generados! Guárdalos en la carpeta public/");
+      }
+    </script>
+  </body>
+</html>
