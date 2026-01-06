@@ -1,7 +1,10 @@
 "use client";
 
+import { fireStreakConfetti } from "@/lib/confetti";
 import { motion } from "framer-motion";
 import { Calendar, Flame, Trophy } from "lucide-react";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
 interface StreakDisplayProps {
   currentStreak: number;
@@ -18,6 +21,34 @@ export default function StreakDisplay({
   isActive,
   hasToday,
 }: StreakDisplayProps) {
+  // Celebrar rachas especiales
+  useEffect(() => {
+    if (currentStreak === 7) {
+      setTimeout(() => {
+        toast.success("🔥 ¡7 días seguidos!", {
+          description: "Una semana completa de consistencia",
+          duration: 3000,
+        });
+      }, 500);
+    } else if (currentStreak === 30) {
+      setTimeout(() => {
+        fireStreakConfetti();
+        toast.success("🏆 ¡30 días seguidos!", {
+          description: "¡Eres una leyenda!",
+          duration: 4000,
+        });
+      }, 500);
+    } else if (currentStreak === 100) {
+      setTimeout(() => {
+        fireStreakConfetti();
+        toast.success("👑 ¡100 días seguidos!", {
+          description: "Nivel maestro alcanzado",
+          duration: 5000,
+        });
+      }, 500);
+    }
+  }, [currentStreak]);
+
   return (
     <div className="border border-border rounded-2xl p-6 space-y-6">
       {/* Título */}

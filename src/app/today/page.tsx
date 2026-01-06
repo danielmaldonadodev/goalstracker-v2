@@ -7,11 +7,13 @@ import DiaryModal from "@/components/DiaryModal";
 import HabitsModal from "@/components/HabitsModal";
 import MediaModal from "@/components/MediaModal";
 import StreakDisplay from "@/components/StreakDisplay";
+import { fireConfetti, firePerfectDayConfetti } from "@/lib/confetti";
 import { format } from "date-fns";
 import { LogOut, Plus, X } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 // Componente para input de objetivo con estado local
 function ObjectiveInput({ habit, currentValue, progress, onUpdate }: any) {
@@ -187,13 +189,15 @@ export default function TodayPage() {
   const loadDayData = async () => {
     setLoading(true);
     const dateStr = format(currentDate, "yyyy-MM-dd");
+    let finalScore = 0;
 
     try {
       // Cargar score
       const scoreRes = await fetch(`/api/score?date=${dateStr}`);
       if (scoreRes.ok) {
         const scoreData = await scoreRes.json();
-        setScore(scoreData.score.score || 0);
+        finalScore = scoreData.score.score || 0;
+        setScore(finalScore);
         setBreakdown(scoreData.breakdown || null);
       }
 
@@ -252,6 +256,18 @@ export default function TodayPage() {
         const streakDataRes = await streakRes.json();
         setStreakData(streakDataRes);
       }
+
+      // Celebrar si es día perfecto (100 puntos) - solo si es hoy
+      const isToday = dateStr === format(new Date(), "yyyy-MM-dd");
+      if (finalScore === 100 && isToday) {
+        setTimeout(() => {
+          firePerfectDayConfetti();
+          toast.success("🏆 ¡Día perfecto! 100 puntos", {
+            description: "Estás imparable",
+            duration: 4000,
+          });
+        }, 1000);
+      }
     } catch (error) {
       console.error("Error al cargar datos:", error);
     } finally {
@@ -281,10 +297,59 @@ export default function TodayPage() {
         }),
       });
 
+      // Guardar estado previo
+      const prevEntriesData = [...entriesData];
+
       // Recargar datos para actualizar score y estado
-      loadDayData();
+      await loadDayData();
+
+      // Verificar si completamos el objetivo
+      const habit = habits.find((h) => h.id === habitId);
+      if (habit) {
+        const isCompleted =
+          habit.type === "boolean"
+            ? value > 0
+            : habit.target && value >= habit.target;
+
+        if (isCompleted) {
+          toast.success(`✓ ${habit.title} completado`, {
+            description:
+              habit.type !== "boolean" ? `${value} ${habit.unit}` : undefined,
+            duration: 2000,
+          });
+
+          // Contar cuántos están completados ahora
+          const completedCount = habits.filter((h) => {
+            if (h.id === habitId) {
+              // Este que acabamos de actualizar
+              return habit.type === "boolean"
+                ? value > 0
+                : habit.target && value >= habit.target;
+            }
+
+            // Los demás verificar en entriesData
+            const entry = prevEntriesData.find((e) => e.objectiveId === h.id);
+            if (!entry) return false;
+
+            if (h.type === "boolean") return entry.value > 0;
+            return h.target && entry.value >= h.target;
+          }).length;
+
+          // Si completamos TODOS los objetivos
+          if (completedCount === habits.length && habits.length > 0) {
+            setTimeout(() => {
+              fireConfetti();
+              toast.success("🎉 ¡Todos los objetivos completados!", {
+                description: "Increíble trabajo hoy",
+                duration: 3000,
+              });
+            }, 500);
+          }
+        }
+      }
     } catch (error) {
       console.error("Error:", error);
+      toast.error("Error al actualizar objetivo");
     }
   };
 
