@@ -1,12 +1,14 @@
 "use client";
 
 import BottomNav from "@/components/BottomNav";
-import { LogOut } from "lucide-react";
+import { useTheme } from "@/components/ThemeProvider";
+import { LogOut, Monitor, Moon, Sun } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
+  const { theme, setTheme } = useTheme();
 
   if (status === "unauthenticated") {
     redirect("/login");
@@ -39,6 +41,7 @@ export default function ProfilePage() {
         </div>
 
         <div className="max-w-4xl mx-auto px-8 py-12 space-y-6">
+          {/* Información del usuario */}
           <div className="border border-border rounded-2xl p-8">
             <h3 className="text-lg font-medium mb-4">Información</h3>
             <div className="space-y-3">
@@ -53,9 +56,65 @@ export default function ProfilePage() {
             </div>
           </div>
 
+          {/* Tema */}
+          <div className="border border-border rounded-2xl p-8">
+            <h3 className="text-lg font-medium mb-4">Apariencia</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Personaliza cómo se ve la app
+            </p>
+
+            <div className="grid grid-cols-3 gap-3">
+              <button
+                onClick={() => setTheme("light")}
+                className={`
+                  flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all
+                  ${
+                    theme === "light"
+                      ? "border-foreground bg-foreground/5"
+                      : "border-border hover:border-foreground/50"
+                  }
+                `}
+              >
+                <Sun size={24} />
+                <span className="text-sm font-medium">Claro</span>
+              </button>
+
+              <button
+                onClick={() => setTheme("dark")}
+                className={`
+                  flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all
+                  ${
+                    theme === "dark"
+                      ? "border-foreground bg-foreground/5"
+                      : "border-border hover:border-foreground/50"
+                  }
+                `}
+              >
+                <Moon size={24} />
+                <span className="text-sm font-medium">Oscuro</span>
+              </button>
+
+              <button
+                onClick={() => setTheme("system")}
+                className={`
+                  flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all
+                  ${
+                    theme === "system"
+                      ? "border-foreground bg-foreground/5"
+                      : "border-border hover:border-foreground/50"
+                  }
+                `}
+              >
+                <Monitor size={24} />
+                <span className="text-sm font-medium">Sistema</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Cerrar sesión */}
           <button
             onClick={() => signOut({ callbackUrl: "/" })}
-            className="w-full py-3 border border-red-500 text-red-500 rounded-xl hover:bg-red-500/10 transition-colors"
+            className="w-full py-3 border border-red-500 text-red-500 rounded-xl hover:bg-red-500/10 transition-colors font-medium"
           >
             Cerrar Sesión
           </button>
