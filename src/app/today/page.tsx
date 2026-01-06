@@ -6,13 +6,13 @@ import DayScoreCircle from "@/components/DayScoreCircle";
 import DiaryModal from "@/components/DiaryModal";
 import HabitsModal from "@/components/HabitsModal";
 import MediaModal from "@/components/MediaModal";
+import StreakDisplay from "@/components/StreakDisplay";
 import { format } from "date-fns";
 import { LogOut, Plus, X } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { useEffect, useState } from "react";
 
-// Componente para input de objetivo con estado local
 // Componente para input de objetivo con estado local
 function ObjectiveInput({ habit, currentValue, progress, onUpdate }: any) {
   const [localValue, setLocalValue] = useState(
@@ -161,6 +161,7 @@ export default function TodayPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [score, setScore] = useState(0);
   const [breakdown, setBreakdown] = useState<any>(null);
+  const [streakData, setStreakData] = useState<any>(null);
   const [diaryEntry, setDiaryEntry] = useState<any>(null);
   const [mediaEntries, setMediaEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -193,7 +194,7 @@ export default function TodayPage() {
       if (scoreRes.ok) {
         const scoreData = await scoreRes.json();
         setScore(scoreData.score.score || 0);
-        setBreakdown(scoreData.breakdown || null); // <-- AÑADIR
+        setBreakdown(scoreData.breakdown || null);
       }
 
       // Cargar diario
@@ -243,6 +244,13 @@ export default function TodayPage() {
           .filter((e: any) => e.value > 0)
           .map((e: any) => e.objectiveId);
         setCompletedHabits(completed);
+      }
+
+      // Cargar streak
+      const streakRes = await fetch("/api/streak");
+      if (streakRes.ok) {
+        const streakDataRes = await streakRes.json();
+        setStreakData(streakDataRes);
       }
     } catch (error) {
       console.error("Error al cargar datos:", error);
@@ -373,6 +381,19 @@ export default function TodayPage() {
               <DayScoreCircle score={score} breakdown={breakdown} />
             )}
           </div>
+
+          {/* Streak */}
+          {!loading && streakData && (
+            <div>
+              <StreakDisplay
+                currentStreak={streakData.currentStreak}
+                maxStreak={streakData.maxStreak}
+                totalDays={streakData.totalDays}
+                isActive={streakData.isActive}
+                hasToday={streakData.hasToday}
+              />
+            </div>
+          )}
 
           {/* Divider */}
           <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent"></div>
