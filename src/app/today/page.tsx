@@ -6,6 +6,7 @@ import DayScoreCircle from "@/components/DayScoreCircle";
 import DiaryModal from "@/components/DiaryModal";
 import HabitsModal from "@/components/HabitsModal";
 import MediaModal from "@/components/MediaModal";
+import { SkeletonCircle, SkeletonList } from "@/components/SkeletonLoader";
 import StreakDisplay from "@/components/StreakDisplay";
 import { fireConfetti, firePerfectDayConfetti } from "@/lib/confetti";
 import { format } from "date-fns";
@@ -575,10 +576,11 @@ export default function TodayPage() {
 
           {/* Sections */}
           {loading ? (
-            <div className="space-y-4">
-              <div className="h-32 rounded-2xl bg-muted/20 animate-pulse"></div>
-              <div className="h-32 rounded-2xl bg-muted/20 animate-pulse"></div>
-              <div className="h-32 rounded-2xl bg-muted/20 animate-pulse"></div>
+            <div className="space-y-16">
+              <SkeletonCircle />
+              <SkeletonList />
+              <SkeletonList />
+              <SkeletonList />
             </div>
           ) : (
             <div className="grid gap-6">

@@ -1,6 +1,7 @@
 "use client";
 
 import BottomNav from "@/components/BottomNav";
+import { SkeletonStats } from "@/components/SkeletonLoader";
 import { motion } from "framer-motion";
 import { LogOut } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
@@ -197,11 +198,7 @@ export default function StatsPage() {
           )}
 
           {loading ? (
-            <div className="space-y-4">
-              <div className="h-32 rounded-2xl bg-muted/20 animate-pulse"></div>
-              <div className="h-32 rounded-2xl bg-muted/20 animate-pulse"></div>
-              <div className="h-64 rounded-2xl bg-muted/20 animate-pulse"></div>
-            </div>
+            <SkeletonStats />
           ) : stats ? (
             <motion.div
               variants={container}

@@ -1,6 +1,7 @@
 "use client";
 
 import BottomNav from "@/components/BottomNav";
+import ObjectiveTemplates from "@/components/ObjectiveTemplates";
 import { useTheme } from "@/components/ThemeProvider";
 import { Download, LogOut, Monitor, Moon, Sun } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
@@ -16,6 +17,7 @@ export default function ProfilePage() {
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [showCustomDates, setShowCustomDates] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   const handleExport = async () => {
     try {
@@ -82,6 +84,31 @@ export default function ProfilePage() {
     }
   };
 
+  const handleTemplateSelect = async (objectives: any[]) => {
+    try {
+      toast.loading("Importando template...");
+
+      // Crear todos los objetivos del template
+      for (const obj of objectives) {
+        await fetch("/api/objectives", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(obj),
+        });
+      }
+
+      toast.dismiss();
+      toast.success("Template importado", {
+        description: `${objectives.length} objetivos añadidos`,
+        duration: 3000,
+      });
+    } catch (error) {
+      toast.dismiss();
+      toast.error("Error al importar template");
+      console.error(error);
+    }
+  };
+
   if (status === "unauthenticated") {
     redirect("/login");
   }
@@ -126,6 +153,22 @@ export default function ProfilePage() {
                 <p className="text-base">{session?.user?.email}</p>
               </div>
             </div>
+          </div>
+
+          {/* Templates de Objetivos */}
+          <div className="border border-border rounded-2xl p-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium">Templates de Objetivos</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Comienza rápido con packs predefinidos de objetivos
+            </p>
+            <button
+              onClick={() => setShowTemplates(true)}
+              className="w-full py-3 border border-border hover:bg-muted/50 rounded-xl transition-colors font-medium"
+            >
+              Ver Templates
+            </button>
           </div>
 
           {/* Tema */}
@@ -342,6 +385,14 @@ export default function ProfilePage() {
 
         <BottomNav />
       </div>
+
+      {/* Modal de Templates */}
+      {showTemplates && (
+        <ObjectiveTemplates
+          onClose={() => setShowTemplates(false)}
+          onSelectTemplate={handleTemplateSelect}
+        />
+      )}
     </>
   );
 }
