@@ -10,7 +10,7 @@ interface MediaModalProps {
   onClose: () => void;
   date: Date;
   onSave: () => void;
-  existingEntry?: any; // Entrada existente para editar
+  existingEntry?: any;
 }
 
 type MediaType =
@@ -51,7 +51,6 @@ export default function MediaModal({
     { value: "videogame", label: "Videojuego" },
   ];
 
-  // Cargar datos existentes al abrir en modo edición
   useEffect(() => {
     if (isOpen && existingEntry) {
       setType(existingEntry.type);
@@ -63,7 +62,6 @@ export default function MediaModal({
       setNotes(existingEntry.notes || "");
       setCompleted(existingEntry.completed || false);
     } else if (isOpen) {
-      // Reset form si es nueva entrada
       setType("series");
       setTitle("");
       setSeason("");
@@ -88,7 +86,6 @@ export default function MediaModal({
         completed,
       };
 
-      // Campos específicos según tipo
       if (type === "series" || type === "anime") {
         if (season) payload.season = parseInt(season);
         if (episode) payload.episode = parseInt(episode);
@@ -100,7 +97,6 @@ export default function MediaModal({
 
       let res;
       if (existingEntry) {
-        // Actualizar entrada existente
         payload.id = existingEntry.id;
         res = await fetch("/api/media", {
           method: "PUT",
@@ -108,7 +104,6 @@ export default function MediaModal({
           body: JSON.stringify(payload),
         });
       } else {
-        // Crear nueva entrada
         payload.date = format(date, "yyyy-MM-dd");
         res = await fetch("/api/media", {
           method: "POST",
@@ -135,7 +130,6 @@ export default function MediaModal({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -144,17 +138,15 @@ export default function MediaModal({
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
           />
 
-          {/* Modal */}
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
-              initial={{ opacity: 0, y: 100 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 100 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-background border border-border rounded-t-3xl sm:rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-background border border-border rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl"
             >
               {/* Header */}
-              <div className="border-b border-border p-6 flex items-center justify-between">
+              <div className="border-b border-border p-6 flex items-center justify-between shrink-0">
                 <div>
                   <h2 className="text-2xl font-light tracking-tight">
                     {existingEntry ? "Editar" : "Añadir"} Media
@@ -173,8 +165,8 @@ export default function MediaModal({
                 </button>
               </div>
 
-              {/* Content */}
-              <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+              {/* Content - Scrollable */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 {/* Type selector */}
                 <div>
                   <label className="block text-sm font-medium mb-3">Tipo</label>
@@ -184,14 +176,11 @@ export default function MediaModal({
                         key={m.value}
                         type="button"
                         onClick={() => setType(m.value as MediaType)}
-                        className={`
-                          px-4 py-2.5 rounded-xl text-sm font-medium transition-all border
-                          ${
-                            type === m.value
-                              ? "bg-foreground text-background border-foreground"
-                              : "bg-background border-border hover:border-foreground/50"
-                          }
-                        `}
+                        className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+                          type === m.value
+                            ? "bg-foreground text-background border-foreground"
+                            : "bg-background border-border hover:border-foreground/50"
+                        }`}
                       >
                         {m.label}
                       </button>
@@ -289,14 +278,11 @@ export default function MediaModal({
                         key={star}
                         type="button"
                         onClick={() => setRating(star)}
-                        className={`
-                          w-12 h-12 rounded-lg border transition-all font-medium
-                          ${
-                            star <= rating
-                              ? "bg-foreground text-background border-foreground"
-                              : "bg-background border-border hover:border-foreground/50"
-                          }
-                        `}
+                        className={`w-12 h-12 rounded-lg border transition-all font-medium ${
+                          star <= rating
+                            ? "bg-foreground text-background border-foreground"
+                            : "bg-background border-border hover:border-foreground/50"
+                        }`}
                       >
                         {star}
                       </button>
@@ -336,18 +322,18 @@ export default function MediaModal({
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="border-t border-border p-6 flex gap-3">
+              {/* Footer - Fixed */}
+              <div className="border-t border-border p-6 flex gap-3 bg-muted/20 shrink-0">
                 <button
                   onClick={onClose}
-                  className="flex-1 px-6 py-3 border border-border rounded-xl font-medium hover:bg-muted transition-colors"
+                  className="px-6 py-3 border-2 border-border rounded-xl font-medium hover:bg-muted transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={!title.trim() || loading}
-                  className="flex-1 px-6 py-3 bg-foreground text-background rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 py-3 bg-foreground text-background rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading
                     ? "Guardando..."

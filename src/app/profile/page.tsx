@@ -1,94 +1,51 @@
 "use client";
 
+import AIInsights from "@/components/AIInsights";
 import BottomNav from "@/components/BottomNav";
+import NotificationSettings from "@/components/NotificationSettings";
 import ObjectiveTemplates from "@/components/ObjectiveTemplates";
 import { useTheme } from "@/components/ThemeProvider";
-import { Download, LogOut, Monitor, Moon, Sun } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  Bell,
+  LogOut,
+  Monitor,
+  Moon,
+  Package,
+  Sparkles,
+  Sun,
+  User,
+} from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+const container = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 },
+  },
+};
+
+const item = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0 },
+};
+
 export default function ProfilePage() {
   const { data: session, status } = useSession();
   const { theme, setTheme } = useTheme();
 
-  const [exportRange, setExportRange] = useState("all");
-  const [customStart, setCustomStart] = useState("");
-  const [customEnd, setCustomEnd] = useState("");
-  const [showCustomDates, setShowCustomDates] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
-
-  const handleExport = async () => {
-    try {
-      toast.loading("Exportando datos...");
-
-      // Construir URL con parámetros
-      let url = `/api/export?range=${exportRange}`;
-      if (exportRange === "custom" && customStart && customEnd) {
-        url += `&start=${customStart}&end=${customEnd}`;
-      }
-
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Error al exportar");
-
-      const data = await res.json();
-
-      // Crear nombre de archivo según el rango
-      let filename = "myear-backup";
-      switch (exportRange) {
-        case "last-month":
-          filename += "-ultimo-mes";
-          break;
-        case "last-3-months":
-          filename += "-ultimos-3-meses";
-          break;
-        case "this-year":
-          filename += "-este-año";
-          break;
-        case "last-year":
-          filename += "-año-anterior";
-          break;
-        case "custom":
-          filename += `-${customStart}-a-${customEnd}`;
-          break;
-        default:
-          filename += "-completo";
-      }
-      filename += `-${new Date().toISOString().split("T")[0]}.json`;
-
-      // Crear archivo JSON
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: "application/json",
-      });
-
-      // Crear link de descarga
-      const urlBlob = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = urlBlob;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(urlBlob);
-
-      toast.dismiss();
-      toast.success("Datos exportados correctamente", {
-        description: `${data.stats.totalObjectives} objetivos, ${data.stats.totalEntries} registros`,
-        duration: 3000,
-      });
-    } catch (error) {
-      toast.dismiss();
-      toast.error("Error al exportar datos");
-      console.error(error);
-    }
-  };
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showAIInsights, setShowAIInsights] = useState(false);
 
   const handleTemplateSelect = async (objectives: any[]) => {
     try {
       toast.loading("Importando template...");
 
-      // Crear todos los objetivos del template
       for (const obj of objectives) {
         await fetch("/api/objectives", {
           method: "POST",
@@ -109,6 +66,19 @@ export default function ProfilePage() {
     }
   };
 
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="h-1 w-32 bg-border rounded-full overflow-hidden">
+          <div
+            className="h-full bg-foreground animate-pulse"
+            style={{ width: "40%" }}
+          ></div>
+        </div>
+      </div>
+    );
+  }
+
   if (status === "unauthenticated") {
     redirect("/login");
   }
@@ -116,6 +86,7 @@ export default function ProfilePage() {
   return (
     <>
       <div className="min-h-screen bg-background pb-32">
+        {/* Header */}
         <div className="safe-top border-b border-border/30 bg-background/95 backdrop-blur-xl sticky top-0 z-10">
           <div className="max-w-4xl mx-auto px-8 py-6">
             <div className="flex items-center justify-between">
@@ -123,7 +94,9 @@ export default function ProfilePage() {
                 <div className="text-xs text-muted-foreground tracking-wider uppercase mb-1">
                   MyYear
                 </div>
-                <h1 className="text-2xl font-light tracking-tight">Perfil</h1>
+                <h1 className="text-2xl font-light tracking-tight">
+                  Tu Perfil
+                </h1>
               </div>
               <button
                 onClick={() => signOut({ callbackUrl: "/" })}
@@ -139,259 +112,206 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto px-8 py-12 space-y-6">
-          {/* Información del usuario */}
-          <div className="border border-border rounded-2xl p-8">
-            <h3 className="text-lg font-medium mb-4">Información</h3>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-muted-foreground">Nombre</p>
-                <p className="text-base">{session?.user?.name}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Email</p>
-                <p className="text-base">{session?.user?.email}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Templates de Objetivos */}
-          <div className="border border-border rounded-2xl p-8">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium">Templates de Objetivos</h3>
-            </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Comienza rápido con packs predefinidos de objetivos
-            </p>
-            <button
-              onClick={() => setShowTemplates(true)}
-              className="w-full py-3 border border-border hover:bg-muted/50 rounded-xl transition-colors font-medium"
+        {/* Content */}
+        <div className="max-w-4xl mx-auto px-8 py-12">
+          <motion.div
+            variants={container}
+            initial="hidden"
+            animate="show"
+            className="space-y-8"
+          >
+            {/* Usuario Info Card */}
+            <motion.div
+              variants={item}
+              className="relative overflow-hidden border border-border rounded-2xl p-8 bg-gradient-to-br from-blue-500/5 to-transparent"
             >
-              Ver Templates
-            </button>
-          </div>
-
-          {/* Tema */}
-          <div className="border border-border rounded-2xl p-8">
-            <h3 className="text-lg font-medium mb-4">Apariencia</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Personaliza cómo se ve la app
-            </p>
-
-            <div className="grid grid-cols-3 gap-3">
-              <button
-                onClick={() => setTheme("light")}
-                className={`
-                  flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all
-                  ${
-                    theme === "light"
-                      ? "border-foreground bg-foreground/5"
-                      : "border-border hover:border-foreground/50"
-                  }
-                `}
-              >
-                <Sun size={24} />
-                <span className="text-sm font-medium">Claro</span>
-              </button>
-
-              <button
-                onClick={() => setTheme("dark")}
-                className={`
-                  flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all
-                  ${
-                    theme === "dark"
-                      ? "border-foreground bg-foreground/5"
-                      : "border-border hover:border-foreground/50"
-                  }
-                `}
-              >
-                <Moon size={24} />
-                <span className="text-sm font-medium">Oscuro</span>
-              </button>
-
-              <button
-                onClick={() => setTheme("system")}
-                className={`
-                  flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all
-                  ${
-                    theme === "system"
-                      ? "border-foreground bg-foreground/5"
-                      : "border-border hover:border-foreground/50"
-                  }
-                `}
-              >
-                <Monitor size={24} />
-                <span className="text-sm font-medium">Sistema</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Export/Backup */}
-          <div className="border border-border rounded-2xl p-8">
-            <h3 className="text-lg font-medium mb-4">Datos y Backup</h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              Exporta tus datos en formato JSON para análisis con IA
-            </p>
-
-            {/* Selector de rango */}
-            <div className="space-y-3 mb-6">
-              <label className="text-sm font-medium">Período a exportar:</label>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors">
-                  <input
-                    type="radio"
-                    name="exportRange"
-                    value="all"
-                    checked={exportRange === "all"}
-                    onChange={(e) => {
-                      setExportRange(e.target.value);
-                      setShowCustomDates(false);
-                    }}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm">Todo el historial</span>
-                </label>
-
-                <label className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors">
-                  <input
-                    type="radio"
-                    name="exportRange"
-                    value="last-month"
-                    checked={exportRange === "last-month"}
-                    onChange={(e) => {
-                      setExportRange(e.target.value);
-                      setShowCustomDates(false);
-                    }}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm">Último mes</span>
-                </label>
-
-                <label className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors">
-                  <input
-                    type="radio"
-                    name="exportRange"
-                    value="last-3-months"
-                    checked={exportRange === "last-3-months"}
-                    onChange={(e) => {
-                      setExportRange(e.target.value);
-                      setShowCustomDates(false);
-                    }}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm">Últimos 3 meses</span>
-                </label>
-
-                <label className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors">
-                  <input
-                    type="radio"
-                    name="exportRange"
-                    value="this-year"
-                    checked={exportRange === "this-year"}
-                    onChange={(e) => {
-                      setExportRange(e.target.value);
-                      setShowCustomDates(false);
-                    }}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm">Este año</span>
-                </label>
-
-                <label className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors">
-                  <input
-                    type="radio"
-                    name="exportRange"
-                    value="last-year"
-                    checked={exportRange === "last-year"}
-                    onChange={(e) => {
-                      setExportRange(e.target.value);
-                      setShowCustomDates(false);
-                    }}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm">Año anterior</span>
-                </label>
-
-                <label className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors">
-                  <input
-                    type="radio"
-                    name="exportRange"
-                    value="custom"
-                    checked={exportRange === "custom"}
-                    onChange={(e) => {
-                      setExportRange(e.target.value);
-                      setShowCustomDates(true);
-                    }}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm">Rango personalizado</span>
-                </label>
-              </div>
-
-              {/* Campos de fecha personalizada */}
-              {showCustomDates && (
-                <div className="grid grid-cols-2 gap-3 mt-3 pl-6">
-                  <div>
-                    <label className="text-xs text-muted-foreground">
-                      Desde:
-                    </label>
-                    <input
-                      type="date"
-                      value={customStart}
-                      onChange={(e) => setCustomStart(e.target.value)}
-                      className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background text-sm"
-                    />
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl" />
+              <div className="relative">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                    <User className="text-white" size={32} />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground">
-                      Hasta:
-                    </label>
-                    <input
-                      type="date"
-                      value={customEnd}
-                      onChange={(e) => setCustomEnd(e.target.value)}
-                      className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background text-sm"
-                    />
+                    <h3 className="text-xl font-medium">
+                      {session?.user?.name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {session?.user?.email}
+                    </p>
                   </div>
                 </div>
-              )}
+              </div>
+            </motion.div>
+
+            {/* Features Grid */}
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Templates */}
+              <motion.button
+                variants={item}
+                onClick={() => setShowTemplates(true)}
+                className="group relative overflow-hidden border border-border rounded-2xl p-6 hover:bg-muted/30 transition-all text-left"
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/5 rounded-full blur-2xl" />
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Package className="text-green-500" size={24} />
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">
+                    Templates de Objetivos
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Packs predefinidos para comenzar rápido
+                  </p>
+                </div>
+              </motion.button>
+
+              {/* Notificaciones */}
+              <motion.button
+                variants={item}
+                onClick={() => setShowNotifications(true)}
+                className="group relative overflow-hidden border border-border rounded-2xl p-6 hover:bg-muted/30 transition-all text-left"
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-full blur-2xl" />
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Bell className="text-orange-500" size={24} />
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">Recordatorios</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Recordatorio diario para tus objetivos
+                  </p>
+                </div>
+              </motion.button>
             </div>
 
-            <button
-              onClick={handleExport}
-              disabled={
-                exportRange === "custom" && (!customStart || !customEnd)
-              }
-              className="w-full flex items-center justify-center gap-2 py-3 border border-border hover:bg-muted/50 rounded-xl transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            {/* AI Insights - Featured */}
+            <motion.button
+              variants={item}
+              onClick={() => setShowAIInsights(true)}
+              className="group relative overflow-hidden border-2 border-purple-500/30 rounded-2xl p-8 bg-gradient-to-br from-purple-500/10 to-transparent hover:from-purple-500/15 transition-all text-left w-full"
             >
-              <Download size={20} />
-              Exportar datos seleccionados
-            </button>
+              <div className="absolute top-0 right-0 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl" />
+              <div className="relative">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-14 h-14 rounded-2xl bg-purple-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Sparkles className="text-white" size={28} />
+                  </div>
+                </div>
+                <h3 className="text-2xl font-medium mb-2">Análisis con IA</h3>
+                <p className="text-muted-foreground mb-4">
+                  Obtén insights personalizados con ChatGPT o Claude sobre tu
+                  progreso, patrones y áreas de mejora
+                </p>
+                <div className="flex items-center gap-2 text-sm text-purple-500 font-medium">
+                  Generar Análisis
+                  <span className="group-hover:translate-x-1 transition-transform">
+                    →
+                  </span>
+                </div>
+              </div>
+            </motion.button>
 
-            <p className="text-xs text-muted-foreground mt-3 text-center">
-              Incluye objetivos, registros, diario, media y scores
-            </p>
-          </div>
+            {/* Apariencia */}
+            <motion.div
+              variants={item}
+              className="border border-border rounded-2xl p-8"
+            >
+              <h3 className="text-lg font-medium mb-4">Apariencia</h3>
+              <p className="text-sm text-muted-foreground mb-6">
+                Personaliza cómo se ve la app
+              </p>
 
-          {/* Cerrar sesión */}
-          <button
-            onClick={() => signOut({ callbackUrl: "/" })}
-            className="w-full py-3 border border-red-500 text-red-500 rounded-xl hover:bg-red-500/10 transition-colors font-medium"
-          >
-            Cerrar Sesión
-          </button>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  onClick={() => setTheme("light")}
+                  className={`group flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all ${
+                    theme === "light"
+                      ? "border-foreground bg-foreground/5"
+                      : "border-border hover:border-foreground/50 hover:bg-muted/30"
+                  }`}
+                >
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+                      theme === "light"
+                        ? "bg-foreground text-background"
+                        : "bg-muted group-hover:bg-muted-foreground/20"
+                    }`}
+                  >
+                    <Sun size={24} />
+                  </div>
+                  <span className="text-sm font-medium">Claro</span>
+                </button>
+
+                <button
+                  onClick={() => setTheme("dark")}
+                  className={`group flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all ${
+                    theme === "dark"
+                      ? "border-foreground bg-foreground/5"
+                      : "border-border hover:border-foreground/50 hover:bg-muted/30"
+                  }`}
+                >
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+                      theme === "dark"
+                        ? "bg-foreground text-background"
+                        : "bg-muted group-hover:bg-muted-foreground/20"
+                    }`}
+                  >
+                    <Moon size={24} />
+                  </div>
+                  <span className="text-sm font-medium">Oscuro</span>
+                </button>
+
+                <button
+                  onClick={() => setTheme("system")}
+                  className={`group flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all ${
+                    theme === "system"
+                      ? "border-foreground bg-foreground/5"
+                      : "border-border hover:border-foreground/50 hover:bg-muted/30"
+                  }`}
+                >
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+                      theme === "system"
+                        ? "bg-foreground text-background"
+                        : "bg-muted group-hover:bg-muted-foreground/20"
+                    }`}
+                  >
+                    <Monitor size={24} />
+                  </div>
+                  <span className="text-sm font-medium">Sistema</span>
+                </button>
+              </div>
+            </motion.div>
+
+            {/* Cerrar sesión */}
+            <motion.button
+              variants={item}
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="w-full py-4 border-2 border-red-500/30 text-red-500 rounded-2xl hover:bg-red-500/10 transition-all font-medium"
+            >
+              Cerrar Sesión
+            </motion.button>
+          </motion.div>
         </div>
 
         <BottomNav />
       </div>
 
-      {/* Modal de Templates */}
+      {/* Modals */}
       {showTemplates && (
         <ObjectiveTemplates
           onClose={() => setShowTemplates(false)}
           onSelectTemplate={handleTemplateSelect}
         />
+      )}
+
+      {showNotifications && (
+        <NotificationSettings onClose={() => setShowNotifications(false)} />
+      )}
+
+      {showAIInsights && (
+        <AIInsights onClose={() => setShowAIInsights(false)} />
       )}
     </>
   );
