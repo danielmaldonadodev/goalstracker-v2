@@ -9,11 +9,97 @@ import MediaModal from "@/components/MediaModal";
 import StreakDisplay from "@/components/StreakDisplay";
 import { fireConfetti, firePerfectDayConfetti } from "@/lib/confetti";
 import { format } from "date-fns";
+import { motion } from "framer-motion";
 import { LogOut, Plus, X } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+
+// Componente de explicación del sistema
+function SystemExplanation({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 border border-border rounded-2xl p-6 mb-6"
+    >
+      <div className="flex items-start justify-between mb-4">
+        <h3 className="text-lg font-medium">Cómo funciona MyYear</h3>
+        <button
+          onClick={onDismiss}
+          className="p-1 hover:bg-muted rounded-lg transition-colors"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Cada día puedes conseguir hasta <strong>100 puntos</strong>{" "}
+          completando:
+        </p>
+
+        <div className="grid gap-3">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="flex items-start gap-3 p-3 rounded-xl bg-background/50"
+          >
+            <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 font-bold text-blue-500">
+              60
+            </div>
+            <div className="flex-1">
+              <div className="font-medium text-sm mb-1">Objetivos</div>
+              <div className="text-xs text-muted-foreground">
+                Completa todos tus objetivos diarios
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="flex items-start gap-3 p-3 rounded-xl bg-background/50"
+          >
+            <div className="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0 font-bold text-purple-500">
+              25
+            </div>
+            <div className="flex-1">
+              <div className="font-medium text-sm mb-1">Diario</div>
+              <div className="text-xs text-muted-foreground">
+                Escribe en tu diario personal
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+            className="flex items-start gap-3 p-3 rounded-xl bg-background/50"
+          >
+            <div className="w-12 h-12 rounded-lg bg-pink-500/10 flex items-center justify-center shrink-0 font-bold text-pink-500">
+              15
+            </div>
+            <div className="flex-1">
+              <div className="font-medium text-sm mb-1">Media</div>
+              <div className="text-xs text-muted-foreground">
+                Registra lo que ves, lees o consumes
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        <p className="text-xs text-muted-foreground pt-3 border-t border-border">
+          Mantén rachas diarias para desbloquear celebraciones especiales
+        </p>
+      </div>
+    </motion.div>
+  );
+}
 
 // Componente para input de objetivo con estado local
 function ObjectiveInput({ habit, currentValue, progress, onUpdate }: any) {
@@ -49,7 +135,9 @@ function ObjectiveInput({ habit, currentValue, progress, onUpdate }: any) {
       : habit.target && currentValue >= habit.target;
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
       className={`
       rounded-2xl border-2 transition-all overflow-hidden
       ${
@@ -154,7 +242,7 @@ function ObjectiveInput({ habit, currentValue, progress, onUpdate }: any) {
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -179,6 +267,22 @@ export default function TodayPage() {
   const [completedHabits, setCompletedHabits] = useState<string[]>([]);
   const [entriesData, setEntriesData] = useState<any[]>([]);
 
+  // System explanation
+  const [showSystemExplanation, setShowSystemExplanation] = useState(false);
+
+  // Check si es primera vez
+  useEffect(() => {
+    const hasSeenExplanation = localStorage.getItem("myear-seen-explanation");
+    if (!hasSeenExplanation && status === "authenticated") {
+      setShowSystemExplanation(true);
+    }
+  }, [status]);
+
+  const dismissExplanation = () => {
+    setShowSystemExplanation(false);
+    localStorage.setItem("myear-seen-explanation", "true");
+  };
+
   // Cargar datos cuando cambia la fecha
   useEffect(() => {
     if (status === "authenticated") {
@@ -192,8 +296,18 @@ export default function TodayPage() {
     let finalScore = 0;
 
     try {
-      // Cargar score
-      const scoreRes = await fetch(`/api/score?date=${dateStr}`);
+      // OPTIMIZACIÓN: Cargar todo en paralelo
+      const [scoreRes, diaryRes, mediaRes, habitsRes, entriesRes, streakRes] =
+        await Promise.all([
+          fetch(`/api/score?date=${dateStr}`),
+          fetch(`/api/diary?date=${dateStr}`),
+          fetch(`/api/media?date=${dateStr}`),
+          fetch("/api/habits"),
+          fetch(`/api/entries?date=${dateStr}`),
+          fetch("/api/streak"),
+        ]);
+
+      // Procesar scores
       if (scoreRes.ok) {
         const scoreData = await scoreRes.json();
         finalScore = scoreData.score.score || 0;
@@ -201,35 +315,30 @@ export default function TodayPage() {
         setBreakdown(scoreData.breakdown || null);
       }
 
-      // Cargar diario
-      const diaryRes = await fetch(`/api/diary?date=${dateStr}`);
+      // Procesar diario
       if (diaryRes.ok) {
         const diaryData = await diaryRes.json();
         setDiaryEntry(diaryData.entry);
       }
 
-      // Cargar media
-      const mediaRes = await fetch(`/api/media?date=${dateStr}`);
+      // Procesar media
       if (mediaRes.ok) {
         const mediaData = await mediaRes.json();
         setMediaEntries(mediaData.entries || []);
       }
 
-      // Cargar hábitos (solo los activos para esta fecha)
-      const habitsRes = await fetch("/api/habits");
+      // Procesar hábitos
       if (habitsRes.ok) {
         const habitsData = await habitsRes.json();
 
         // Filtrar por fechas
         const activeHabits = habitsData.habits.filter((h: any) => {
-          // Sin fechas = siempre activo
           if (!h.startDate && !h.endDate) return true;
 
           const habitStart = h.startDate ? new Date(h.startDate) : null;
           const habitEnd = h.endDate ? new Date(h.endDate) : null;
           const checkDate = new Date(dateStr);
 
-          // Verificar si la fecha actual está en el rango
           if (habitStart && checkDate < habitStart) return false;
           if (habitEnd && checkDate > habitEnd) return false;
 
@@ -239,8 +348,7 @@ export default function TodayPage() {
         setHabits(activeHabits);
       }
 
-      // Cargar entries (hábitos completados)
-      const entriesRes = await fetch(`/api/entries?date=${dateStr}`);
+      // Procesar entries
       if (entriesRes.ok) {
         const entriesDataRes = await entriesRes.json();
         setEntriesData(entriesDataRes.entries || []);
@@ -250,14 +358,13 @@ export default function TodayPage() {
         setCompletedHabits(completed);
       }
 
-      // Cargar streak
-      const streakRes = await fetch("/api/streak");
+      // Procesar streak
       if (streakRes.ok) {
         const streakDataRes = await streakRes.json();
         setStreakData(streakDataRes);
       }
 
-      // Celebrar si es día perfecto (100 puntos) - solo si es hoy
+      // Celebrar si es día perfecto (solo si es hoy)
       const isToday = dateStr === format(new Date(), "yyyy-MM-dd");
       if (finalScore === 100 && isToday) {
         setTimeout(() => {
@@ -321,13 +428,11 @@ export default function TodayPage() {
           // Contar cuántos están completados ahora
           const completedCount = habits.filter((h) => {
             if (h.id === habitId) {
-              // Este que acabamos de actualizar
               return habit.type === "boolean"
                 ? value > 0
                 : habit.target && value >= habit.target;
             }
 
-            // Los demás verificar en entriesData
             const entry = prevEntriesData.find((e) => e.objectiveId === h.id);
             if (!entry) return false;
 
@@ -428,6 +533,11 @@ export default function TodayPage() {
 
         {/* Contenido principal */}
         <div className="max-w-3xl mx-auto px-8 py-12 space-y-16">
+          {/* System Explanation */}
+          {showSystemExplanation && !loading && (
+            <SystemExplanation onDismiss={dismissExplanation} />
+          )}
+
           {/* Date Navigator */}
           <div>
             <DateNavigator

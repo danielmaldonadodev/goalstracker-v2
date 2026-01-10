@@ -12,14 +12,8 @@ import {
   subMonths,
 } from "date-fns";
 import { es } from "date-fns/locale";
-import {
-  Award,
-  Calendar,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-  TrendingUp,
-} from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { redirect, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -29,7 +23,6 @@ export default function TimelinePage() {
   const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [scores, setScores] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
 
@@ -49,7 +42,6 @@ export default function TimelinePage() {
       if (res.ok) {
         const data = await res.json();
         setScores(data.scores || []);
-        setStats(data.stats || null);
       }
     } catch (error) {
       console.error("Error:", error);
@@ -100,15 +92,14 @@ export default function TimelinePage() {
   };
 
   const getColorForScore = (score: number) => {
-    if (score === 0) return "bg-muted/30 border-muted/50";
+    if (score === 0) return "bg-muted/20 border-muted/30";
     if (score <= 40)
-      return "bg-red-500/20 border-red-500/40 hover:bg-red-500/30";
+      return "bg-red-500/15 border-red-500/30 hover:bg-red-500/25";
     if (score <= 70)
-      return "bg-orange-500/20 border-orange-500/40 hover:bg-orange-500/30";
-    return "bg-green-500/20 border-green-500/40 hover:bg-green-500/30";
+      return "bg-orange-500/15 border-orange-500/30 hover:bg-orange-500/25";
+    return "bg-green-500/15 border-green-500/30 hover:bg-green-500/25";
   };
 
-  // Ordenar scores por fecha descendente para lista
   const sortedScores = [...scores].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
@@ -141,23 +132,27 @@ export default function TimelinePage() {
         </div>
 
         {/* Content */}
-        <div className="max-w-4xl mx-auto px-8 py-12 space-y-8">
+        <div className="max-w-4xl mx-auto px-8 py-12 space-y-12">
           {/* Navegación de mes */}
-          <div className="flex items-center justify-between">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between"
+          >
             <button
               onClick={handlePrevMonth}
-              className="p-2 hover:bg-muted rounded-lg transition-colors"
+              className="p-3 hover:bg-muted rounded-xl transition-all hover:scale-105"
             >
-              <ChevronLeft size={24} />
+              <ChevronLeft size={24} strokeWidth={1.5} />
             </button>
 
             <div className="text-center">
-              <h2 className="text-2xl font-light tracking-tight capitalize">
+              <h2 className="text-3xl font-light tracking-tight capitalize mb-1">
                 {format(currentDate, "MMMM yyyy", { locale: es })}
               </h2>
               <button
                 onClick={handleToday}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors mt-1"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Ir a hoy
               </button>
@@ -165,264 +160,262 @@ export default function TimelinePage() {
 
             <button
               onClick={handleNextMonth}
-              className="p-2 hover:bg-muted rounded-lg transition-colors"
+              className="p-3 hover:bg-muted rounded-xl transition-all hover:scale-105"
             >
-              <ChevronRight size={24} />
+              <ChevronRight size={24} strokeWidth={1.5} />
             </button>
-          </div>
+          </motion.div>
 
           {/* Toggle Vista */}
-          <div className="flex justify-center gap-2">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className="flex justify-center gap-2"
+          >
             <button
               onClick={() => setViewMode("calendar")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 viewMode === "calendar"
                   ? "bg-foreground text-background"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
               }`}
             >
               Calendario
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 viewMode === "list"
                   ? "bg-foreground text-background"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
               }`}
             >
               Lista
             </button>
-          </div>
-
-          {/* Stats del mes */}
-          {stats && !loading && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="border border-border rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Calendar size={16} className="text-blue-500" />
-                  <span className="text-xs text-muted-foreground">Días</span>
-                </div>
-                <p className="text-2xl font-light">{stats.totalDays}</p>
-              </div>
-
-              <div className="border border-border rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp size={16} className="text-green-500" />
-                  <span className="text-xs text-muted-foreground">
-                    Promedio
-                  </span>
-                </div>
-                <p className="text-2xl font-light">{stats.avgScore}</p>
-              </div>
-
-              <div className="border border-border rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Award size={16} className="text-yellow-500" />
-                  <span className="text-xs text-muted-foreground">
-                    Perfectos
-                  </span>
-                </div>
-                <p className="text-2xl font-light">{stats.perfectDays}</p>
-              </div>
-
-              {stats.bestDay && (
-                <div className="border border-border rounded-xl p-4">
-                  <span className="text-xs text-muted-foreground block mb-2">
-                    Mejor
-                  </span>
-                  <p className="text-2xl font-light">{stats.bestDay.score}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {format(new Date(stats.bestDay.date), "d MMM", {
-                      locale: es,
-                    })}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+          </motion.div>
 
           {/* Vista Calendario */}
-          {viewMode === "calendar" && (
-            <div className="border border-border rounded-2xl p-6 sm:p-8">
-              {loading ? (
-                <div className="flex justify-center py-12">
-                  <div className="h-1 w-32 bg-border rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-foreground animate-pulse"
-                      style={{ width: "40%" }}
-                    ></div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Header días */}
-                  <div className="grid grid-cols-7 gap-2">
-                    {weekDays.map((day) => (
+          <AnimatePresence mode="wait">
+            {viewMode === "calendar" && (
+              <motion.div
+                key="calendar"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="border border-border rounded-2xl p-8"
+              >
+                {loading ? (
+                  <div className="flex justify-center py-12">
+                    <div className="h-1 w-32 bg-border rounded-full overflow-hidden">
                       <div
-                        key={day}
-                        className="text-center text-xs font-medium text-muted-foreground"
-                      >
-                        {day}
-                      </div>
-                    ))}
+                        className="h-full bg-foreground animate-pulse"
+                        style={{ width: "40%" }}
+                      ></div>
+                    </div>
                   </div>
-
-                  {/* Días */}
-                  <div className="grid grid-cols-7 gap-2">
-                    {emptyDays.map((i) => (
-                      <div key={`empty-${i}`} className="aspect-square" />
-                    ))}
-
-                    {daysInMonth.map((day) => {
-                      const score = getScoreForDay(day);
-                      const colorClass = getColorForScore(score);
-                      const today = isToday(day);
-                      const hasScore = score > 0;
-
-                      return (
-                        <button
-                          key={day.toISOString()}
-                          onClick={() =>
-                            hasScore ? handleDayClick(day) : undefined
-                          }
-                          disabled={!hasScore}
-                          className={`
-                                      aspect-square rounded-xl border-2 transition-all
-                                      flex flex-col items-center justify-center p-2
-                                      ${
-                                        today
-                                          ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
-                                          : ""
-                                      }
-                                      ${colorClass}
-                                      ${
-                                        hasScore
-                                          ? "cursor-pointer hover:scale-105"
-                                          : "cursor-default"
-                                      }
-                                    `}
+                ) : (
+                  <div className="space-y-6">
+                    {/* Header días */}
+                    <div className="grid grid-cols-7 gap-3">
+                      {weekDays.map((day) => (
+                        <div
+                          key={day}
+                          className="text-center text-sm font-medium text-muted-foreground"
                         >
-                          <span
-                            className={`text-sm font-medium ${
-                              hasScore ? "mb-0.5" : ""
-                            }`}
+                          {day}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Días */}
+                    <div className="grid grid-cols-7 gap-3">
+                      {emptyDays.map((i) => (
+                        <div key={`empty-${i}`} className="aspect-square" />
+                      ))}
+
+                      {daysInMonth.map((day, index) => {
+                        const score = getScoreForDay(day);
+                        const colorClass = getColorForScore(score);
+                        const today = isToday(day);
+                        const hasScore = score > 0;
+
+                        return (
+                          <motion.button
+                            key={day.toISOString()}
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: index * 0.01 }}
+                            onClick={() =>
+                              hasScore ? handleDayClick(day) : undefined
+                            }
+                            disabled={!hasScore}
+                            className={`
+                              aspect-square rounded-2xl border-2 transition-all
+                              flex flex-col items-center justify-center
+                              ${
+                                today
+                                  ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
+                                  : ""
+                              }
+                              ${colorClass}
+                              ${
+                                hasScore
+                                  ? "cursor-pointer hover:scale-105 active:scale-95"
+                                  : "cursor-default opacity-40"
+                              }
+                            `}
                           >
-                            {format(day, "d")}
-                          </span>
-                          {hasScore && (
-                            <span className="text-[10px] font-bold opacity-80">
-                              {score}
+                            <span
+                              className={`text-lg font-light ${
+                                hasScore ? "mb-1" : ""
+                              }`}
+                            >
+                              {format(day, "d")}
                             </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+                            {hasScore && (
+                              <span className="text-xs font-medium opacity-70">
+                                {score}
+                              </span>
+                            )}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
 
-                  {/* Leyenda */}
-                  <div className="flex flex-wrap items-center justify-center gap-4 pt-4 border-t border-border">
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded bg-muted/30 border border-muted/50" />
-                      <span className="text-xs text-muted-foreground">
-                        Sin datos
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded bg-red-500/20 border border-red-500/40" />
-                      <span className="text-xs text-muted-foreground">
-                        0-40
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded bg-orange-500/20 border border-orange-500/40" />
-                      <span className="text-xs text-muted-foreground">
-                        41-70
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded bg-green-500/20 border border-green-500/40" />
-                      <span className="text-xs text-muted-foreground">
-                        71-100
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Vista Lista */}
-          {viewMode === "list" && (
-            <div className="space-y-3">
-              {loading ? (
-                <div className="flex justify-center py-12">
-                  <div className="h-1 w-32 bg-border rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-foreground animate-pulse"
-                      style={{ width: "40%" }}
-                    ></div>
-                  </div>
-                </div>
-              ) : sortedScores.length > 0 ? (
-                sortedScores.map((score) => {
-                  const date = new Date(score.date);
-                  const colorClass =
-                    score.score >= 71
-                      ? "border-green-500/50"
-                      : score.score >= 41
-                      ? "border-orange-500/50"
-                      : "border-red-500/50";
-
-                  return (
-                    <button
-                      key={score.id}
-                      onClick={() => handleDayClick(date)}
-                      className={`w-full border-2 ${colorClass} rounded-2xl p-6 hover:bg-muted/30 transition-all text-left`}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <p className="text-lg font-medium capitalize">
-                            {format(date, "EEEE, d 'de' MMMM", { locale: es })}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {format(date, "yyyy")}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-3xl font-light">{score.score}</p>
-                          <p className="text-xs text-muted-foreground">
-                            puntos
-                          </p>
-                        </div>
+                    {/* Leyenda */}
+                    <div className="flex flex-wrap items-center justify-center gap-6 pt-6 border-t border-border">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-lg bg-muted/20 border border-muted/30" />
+                        <span className="text-xs text-muted-foreground">
+                          Sin datos
+                        </span>
                       </div>
-
-                      <div className="grid grid-cols-3 gap-2 text-xs">
-                        <div>
-                          <p className="text-muted-foreground">Objetivos</p>
-                          <p className="font-medium">{score.habitsScore}/60</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Diario</p>
-                          <p className="font-medium">{score.diaryScore}/25</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Media</p>
-                          <p className="font-medium">{score.mediaScore}/15</p>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-lg bg-red-500/15 border border-red-500/30" />
+                        <span className="text-xs text-muted-foreground">
+                          0-40
+                        </span>
                       </div>
-                    </button>
-                  );
-                })
-              ) : (
-                <div className="border border-dashed border-border rounded-2xl p-12 text-center">
-                  <p className="text-muted-foreground">
-                    No hay datos para este mes
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-lg bg-orange-500/15 border border-orange-500/30" />
+                        <span className="text-xs text-muted-foreground">
+                          41-70
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-lg bg-green-500/15 border border-green-500/30" />
+                        <span className="text-xs text-muted-foreground">
+                          71-100
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* Vista Lista */}
+            {viewMode === "list" && (
+              <motion.div
+                key="list"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-3"
+              >
+                {loading ? (
+                  <div className="flex justify-center py-12">
+                    <div className="h-1 w-32 bg-border rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-foreground animate-pulse"
+                        style={{ width: "40%" }}
+                      ></div>
+                    </div>
+                  </div>
+                ) : sortedScores.length > 0 ? (
+                  sortedScores.map((score, index) => {
+                    const date = new Date(score.date);
+                    const colorClass =
+                      score.score >= 71
+                        ? "border-green-500/30 hover:border-green-500/50 hover:bg-green-500/5"
+                        : score.score >= 41
+                        ? "border-orange-500/30 hover:border-orange-500/50 hover:bg-orange-500/5"
+                        : "border-red-500/30 hover:border-red-500/50 hover:bg-red-500/5";
+
+                    return (
+                      <motion.button
+                        key={score.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        onClick={() => handleDayClick(date)}
+                        className={`w-full border-2 ${colorClass} rounded-2xl p-6 transition-all text-left hover:scale-[1.01] active:scale-[0.99]`}
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <p className="text-xl font-light capitalize mb-1">
+                              {format(date, "EEEE d", { locale: es })}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {format(date, "MMMM yyyy", { locale: es })}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-5xl font-light">{score.score}</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border/50">
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">
+                              Objetivos
+                            </p>
+                            <p className="text-lg font-light">
+                              {score.habitsScore}
+                              <span className="text-sm text-muted-foreground">
+                                /60
+                              </span>
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">
+                              Diario
+                            </p>
+                            <p className="text-lg font-light">
+                              {score.diaryScore}
+                              <span className="text-sm text-muted-foreground">
+                                /25
+                              </span>
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">
+                              Media
+                            </p>
+                            <p className="text-lg font-light">
+                              {score.mediaScore}
+                              <span className="text-sm text-muted-foreground">
+                                /15
+                              </span>
+                            </p>
+                          </div>
+                        </div>
+                      </motion.button>
+                    );
+                  })
+                ) : (
+                  <div className="border border-dashed border-border rounded-2xl p-16 text-center">
+                    <p className="text-lg text-muted-foreground font-light">
+                      No hay datos para este mes
+                    </p>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <BottomNav />

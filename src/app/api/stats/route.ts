@@ -1,13 +1,11 @@
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  eachDayOfInterval,
   endOfMonth,
   endOfWeek,
   format,
   startOfMonth,
   startOfWeek,
-  subDays,
 } from "date-fns";
 import { es } from "date-fns/locale";
 import { getServerSession } from "next-auth";
@@ -22,22 +20,69 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const period = searchParams.get("period") || "week"; // week, month, year
+    const period = searchParams.get("period") || "month";
 
+    // Obtener el primer score del usuario PRIMERO
+    const firstScore = await prisma.dailyScore.findFirst({
+      where: { userId: session.user.id },
+      orderBy: { date: "asc" },
+    });
+
+    if (!firstScore) {
+      // Si no hay scores, devolver datos vacíos
+      return NextResponse.json({
+        summary: {
+          avgScore: 0,
+          perfectDays: 0,
+          totalDays: 0,
+          dateRange: null,
+          bestDay: null,
+          bestDayOfWeek: null,
+        },
+        objectives: {
+          mostCompleted: [],
+          leastCompleted: [],
+        },
+      });
+    }
+
+    // Fecha de inicio del usuario (normalizada al inicio del día)
+    const userStartDate = new Date(firstScore.date);
+    userStartDate.setHours(0, 0, 0, 0);
+
+    // Determinar rango de fechas
     const now = new Date();
-    let startDate: Date;
-    let endDate: Date;
+    now.setHours(23, 59, 59, 999);
 
-    if (period === "week") {
-      startDate = startOfWeek(now, { weekStartsOn: 1 }); // Lunes
-      endDate = endOfWeek(now, { weekStartsOn: 1 });
-    } else if (period === "month") {
-      startDate = startOfMonth(now);
-      endDate = endOfMonth(now);
-    } else {
-      // year - últimos 365 días
-      startDate = subDays(now, 365);
-      endDate = now;
+    let startDate: Date;
+    let endDate: Date = now;
+
+    switch (period) {
+      case "week":
+        startDate = startOfWeek(now, { weekStartsOn: 1 });
+        startDate.setHours(0, 0, 0, 0);
+        // NUNCA antes del primer score del usuario
+        if (startDate < userStartDate) {
+          startDate = userStartDate;
+        }
+        endDate = endOfWeek(now, { weekStartsOn: 1 });
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case "month":
+        startDate = startOfMonth(now);
+        startDate.setHours(0, 0, 0, 0);
+        // NUNCA antes del primer score del usuario
+        if (startDate < userStartDate) {
+          startDate = userStartDate;
+        }
+        endDate = endOfMonth(now);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case "all":
+      default:
+        startDate = userStartDate;
+        endDate = now;
+        break;
     }
 
     // Obtener scores del período
@@ -54,7 +99,7 @@ export async function GET(request: Request) {
       },
     });
 
-    // Obtener todos los objetivos del usuario
+    // Obtener objetivos del usuario
     const objectives = await prisma.objective.findMany({
       where: {
         userId: session.user.id,
@@ -84,6 +129,8 @@ export async function GET(request: Request) {
         : 0;
 
     const perfectDays = scores.filter((s) => s.score >= 90).length;
+
+    // Total de días = cantidad de scores que tenemos
     const totalDays = scores.length;
 
     const bestDay =
@@ -94,28 +141,30 @@ export async function GET(request: Request) {
         : null;
 
     // Stats por día de la semana
-    const dayStats: { [key: string]: { total: number; count: number } } = {};
+    const dayStats: { [key: number]: { total: number; count: number } } = {};
     scores.forEach((score) => {
-      const dayName = format(new Date(score.date), "EEEE", { locale: es });
-      if (!dayStats[dayName]) {
-        dayStats[dayName] = { total: 0, count: 0 };
+      const dayOfWeek = new Date(score.date).getDay();
+      if (!dayStats[dayOfWeek]) {
+        dayStats[dayOfWeek] = { total: 0, count: 0 };
       }
-      dayStats[dayName].total += score.score;
-      dayStats[dayName].count += 1;
+      dayStats[dayOfWeek].total += score.score;
+      dayStats[dayOfWeek].count += 1;
     });
 
     const bestDayOfWeek =
-      Object.entries(dayStats).length > 0
+      Object.keys(dayStats).length > 0
         ? Object.entries(dayStats).reduce(
             (best, [day, stats]) => {
               const avg = stats.total / stats.count;
-              return avg > best.avg ? { day, avg } : best;
+              return avg > best.avgScore
+                ? { dayOfWeek: parseInt(day), avgScore: Math.round(avg) }
+                : best;
             },
-            { day: "", avg: 0 }
+            { dayOfWeek: 0, avgScore: 0 }
           )
         : null;
 
-    // Objetivos más y menos cumplidos (BASADO EN CONSISTENCIA)
+    // Objetivos más y menos cumplidos
     const objectiveStats: {
       [key: string]: {
         completed: number;
@@ -124,25 +173,39 @@ export async function GET(request: Request) {
       };
     } = {};
 
-    // Calcular cuántos días cada objetivo estuvo activo en el período
     objectives.forEach((objective) => {
+      // Inicio del objetivo: su startDate O el inicio del período
       const objStartDate = objective.startDate
         ? new Date(objective.startDate)
         : startDate;
-      const objEndDate = objective.endDate
-        ? new Date(objective.endDate)
-        : endDate;
+      objStartDate.setHours(0, 0, 0, 0);
 
-      // Calcular días que el objetivo estuvo activo dentro del período
-      const activeStart = objStartDate > startDate ? objStartDate : startDate;
-      const activeEnd = objEndDate < endDate ? objEndDate : endDate;
+      // Fin del objetivo: su endDate O HOY (lo que sea menor)
+      const objEndDate = objective.endDate ? new Date(objective.endDate) : now;
+      objEndDate.setHours(23, 59, 59, 999);
 
-      if (activeStart <= activeEnd) {
-        const daysActive =
-          Math.ceil(
-            (activeEnd.getTime() - activeStart.getTime()) /
-              (1000 * 60 * 60 * 24)
-          ) + 1;
+      // CRÍTICO: El inicio real NUNCA puede ser antes del primer score del usuario
+      const actualStart = new Date(
+        Math.max(
+          objStartDate.getTime(),
+          startDate.getTime(),
+          userStartDate.getTime()
+        )
+      );
+
+      // El fin real es el más temprano entre objetivo, período y HOY
+      const actualEnd = new Date(
+        Math.min(
+          objEndDate.getTime(),
+          endDate.getTime(),
+          now.getTime() // AÑADIR ESTO - NO CONTAR DÍAS FUTUROS
+        )
+      );
+
+      if (actualStart <= actualEnd) {
+        // Calcular días entre actualStart y actualEnd (inclusive)
+        const diffTime = actualEnd.getTime() - actualStart.getTime();
+        const daysActive = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
         objectiveStats[objective.id] = {
           completed: 0,
@@ -167,58 +230,28 @@ export async function GET(request: Request) {
     });
 
     const objectiveStatsArray = Object.entries(objectiveStats)
-      .filter(([id, stats]) => stats.daysActive >= 3) // Solo mostrar objetivos con al menos 3 días activos
+      .filter(([id, stats]) => stats.daysActive >= 3)
       .map(([id, stats]) => ({
         id,
         title: stats.title,
         completed: stats.completed,
         daysActive: stats.daysActive,
-        percentage: Math.round((stats.completed / stats.daysActive) * 100),
+        percentage: (stats.completed / stats.daysActive) * 100,
       }))
       .sort((a, b) => b.percentage - a.percentage);
 
     const mostCompleted = objectiveStatsArray.slice(0, 5);
     const leastCompleted = objectiveStatsArray.slice(-5).reverse();
 
-    // Preparar datos para gráfico de línea (últimos 30 días)
-    const last30Days = eachDayOfInterval({
-      start: subDays(now, 29),
-      end: now,
-    });
-
-    const chartData = last30Days.map((date) => {
-      const dateStr = format(date, "yyyy-MM-dd");
-      const score = scores.find(
-        (s) => format(new Date(s.date), "yyyy-MM-dd") === dateStr
-      );
-      return {
-        date: format(date, "dd MMM", { locale: es }),
-        score: score?.score || 0,
-        fullDate: dateStr,
-      };
-    });
-
-    // Datos para gráfico de barras (día de la semana)
-    const weekdayData = [
-      "Lunes",
-      "Martes",
-      "Miércoles",
-      "Jueves",
-      "Viernes",
-      "Sábado",
-      "Domingo",
-    ].map((day) => ({
-      day: day.slice(0, 3),
-      avg: dayStats[day]
-        ? Math.round(dayStats[day].total / dayStats[day].count)
-        : 0,
-    }));
-
     return NextResponse.json({
       summary: {
         avgScore,
         perfectDays,
         totalDays,
+        dateRange: {
+          start: format(startDate, "d 'de' MMM", { locale: es }),
+          end: format(endDate, "d 'de' MMM", { locale: es }),
+        },
         bestDay: bestDay
           ? {
               date: format(new Date(bestDay.date), "d 'de' MMMM", {
@@ -227,20 +260,12 @@ export async function GET(request: Request) {
               score: bestDay.score,
             }
           : null,
-        bestDayOfWeek: bestDayOfWeek
-          ? {
-              day: bestDayOfWeek.day,
-              avg: Math.round(bestDayOfWeek.avg),
-            }
-          : null,
+        bestDayOfWeek:
+          bestDayOfWeek && bestDayOfWeek.avgScore > 0 ? bestDayOfWeek : null,
       },
       objectives: {
         mostCompleted,
         leastCompleted,
-      },
-      charts: {
-        scoreOverTime: chartData,
-        weekdayAverage: weekdayData,
       },
     });
   } catch (error) {
